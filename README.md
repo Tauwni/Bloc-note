@@ -1,5 +1,5 @@
 # Bloc Note
 
-Bloc-notes de tâches protégé par prénom + code perso.
+Tâches avec filtres, emploi du temps et notes. Fonctionne sur téléphone et ordinateur.
 
-En ligne : https://tauwni.github.io/bloc-note/
+En ligne : https://tauwni.github.io/Bloc-note/
