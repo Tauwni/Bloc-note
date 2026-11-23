@@ -54,6 +54,7 @@ const IC = {
   target: 'c:12,12,9.5|c:12,12,5.5|c:12,12,1.5', spark: 'M12 3l1.9 5.8L20 10l-5 3.8L16.5 20 12 16.4 7.5 20 9 13.8 4 10l6.1-1.2z',
   book: 'M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20', arrow: 'M5 12h14|m12 5 7 7-7 7',
   undo: 'M9 14 4 9l5-5|M4 9h10.5a5.5 5.5 0 0 1 0 11H11', layers: 'm12 2 10 5-10 5L2 7z|m2 17 10 5 10-5|m2 12 10 5 10-5',
+  filter: 'M22 3H2l8 9.5V19l4 2v-8.5L22 3z',
   hash: 'M4 9h16|M4 15h16|M10 3 8 21|M16 3l-2 18', subtask: 'M4 4v10a2 2 0 0 0 2 2h8|m10 12 4 4-4 4|M18 8h3|M18 16h3'
 };
 function ic(n, cls = '') {
@@ -252,25 +253,52 @@ function vTasks() {
   const f = ui.f, k = todayK();
   const cnt = fn => S.tasks.filter(fn).length;
   const when = [['all', 'Tout', 'layers'], ['today', 'Aujourd’hui', 'sun', cnt(t => !t.done && t.due === k)], ['week', '7 jours', 'calendar'], ['late', 'En retard', 'alert', cnt(t => !t.done && t.due && t.due < k)], ['nodate', 'Sans date', 'inbox']];
+  const act = activeFilters();
   return `<div class="fadein">
-  <header class="head"><div><h1>Tâches</h1><p>${f.list !== 'all' ? esc(listOf(f.list).name) + ' · ' : ''}<span id="tcount"></span></p></div>
+  <header class="head"><div><h1>Tâches</h1><p><span id="tcount"></span></p></div>
     <div class="actions hide-narrow"><button class="btn primary" data-act="newTask">${ic('plus')} Nouvelle tâche</button></div></header>
-  <div class="toolbar">
-    <label class="search">${ic('search')}<input id="tq" type="search" placeholder="Rechercher une tâche, une étiquette…" value="${esc(f.q)}" autocomplete="off"></label>
-    <div class="chips">${when.map(([v, l, i, c]) => `<button class="chip ${f.when === v ? 'on' : ''}" data-act="filter" data-k="when" data-v="${v}">${ic(i)}${l}${c ? `<em>${c}</em>` : ''}</button>`).join('')}</div>
-    <div class="chips"><button class="chip ${f.list === 'all' ? 'on' : ''}" data-act="filter" data-k="list" data-v="all">${ic('folder')}Toutes les listes</button>
-      ${S.lists.map(l => `<button class="chip ${f.list === l.id ? 'on' : ''}" data-act="filter" data-k="list" data-v="${l.id}"><i class="dot" style="--c:${l.color}"></i>${esc(l.name)}<em>${cnt(t => !t.done && t.list === l.id)}</em></button>`).join('')}
-      <button class="chip" data-act="newList">${ic('plus')}Liste</button></div>
-    <div class="frow">
-      <div class="seg">${[['open', 'À faire'], ['all', 'Toutes'], ['done', 'Terminées']].map(([v, l]) => `<button class="${f.status === v ? 'on' : ''}" data-act="filter" data-k="status" data-v="${v}">${l}</button>`).join('')}</div>
-      <div class="actions" style="display:flex;gap:8px;flex-wrap:wrap">
-        <label class="sel">${ic('flag')}<select id="fprio" aria-label="Priorité"><option value="-1">Toutes priorités</option>${PRIO.map((p, i) => `<option value="${i}" ${f.prio === i ? 'selected' : ''}>${i ? 'Priorité ' + p.n.toLowerCase() : 'Sans priorité'}</option>`).join('')}</select></label>
-        <label class="sel">${ic('sort')}<select id="fsort" aria-label="Trier">${[['manual', 'Mon ordre'], ['due', 'Échéance'], ['prio', 'Priorité'], ['recent', 'Plus récentes'], ['alpha', 'A → Z']].map(([v, l]) => `<option value="${v}" ${f.sort === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
-      </div>
-    </div>
+  <div class="tbar">
+    <label class="search">${ic('search')}<input id="tq" type="search" placeholder="Rechercher…" value="${esc(f.q)}" autocomplete="off"></label>
+    <button class="btn fbtn ${act.length ? 'has' : ''}" data-act="openFilters" aria-label="Filtres et tri">${ic('filter')}<span class="hide-xs">Filtres</span>${act.length ? `<b class="badge">${act.length}</b>` : ''}</button>
   </div>
-  <div class="listbar"><span id="thint"></span><button class="link" data-act="clearDone" id="clearDone">Supprimer les terminées</button></div>
-  <div id="tlist"></div></div>`;
+  ${act.length ? `<div class="chips active-f">${act.map(([k, l]) => `<button class="chip on" data-act="clearF" data-k="${k}">${esc(l)}${ic('x')}</button>`).join('')}${act.length > 1 ? `<button class="link" data-act="resetFilters">Tout effacer</button>` : ''}</div>` : ''}
+  <div id="tlist"></div>
+  <div class="listfoot"><button class="link" data-act="clearDone" id="clearDone">Supprimer les tâches terminées</button></div></div>`;
+}
+const WHEN_L = { today: 'Aujourd’hui', week: '7 prochains jours', late: 'En retard', nodate: 'Sans date' };
+const SORT_L = { manual: 'Mon ordre', due: 'Échéance', prio: 'Priorité', recent: 'Plus récentes', alpha: 'A → Z' };
+function activeFilters() {
+  const f = ui.f, a = [];
+  if (f.status === 'done') a.push(['status', 'Terminées']);
+  if (f.status === 'all') a.push(['status', 'Toutes']);
+  if (f.when !== 'all') a.push(['when', WHEN_L[f.when]]);
+  if (f.list !== 'all') a.push(['list', listOf(f.list).name]);
+  if (f.prio >= 0) a.push(['prio', f.prio ? 'Priorité ' + PRIO[f.prio].n.toLowerCase() : 'Sans priorité']);
+  if (f.sort !== 'manual') a.push(['sort', 'Tri : ' + SORT_L[f.sort]]);
+  return a;
+}
+function filterSheet() {
+  const f = ui.f;
+  const grp = (title, key, opts) => `<div class="field"><label>${title}</label><div class="daychips" data-fk="${key}">${opts.map(([v, l, extra = '']) => `<button type="button" class="chip ${String(f[key]) === String(v) ? 'on' : ''}" data-fv="${v}">${extra}${esc(l)}</button>`).join('')}</div></div>`;
+  openSheet(`
+    <div class="sh-head"><button class="btn ghost" id="fReset">Réinitialiser</button><h3>Filtres et tri</h3><button class="btn primary sm" data-close>OK</button></div>
+    <div class="sh-body">
+      ${grp(`${ic('check')} Afficher`, 'status', [['open', 'À faire'], ['all', 'Toutes'], ['done', 'Terminées']])}
+      ${grp(`${ic('calendar')} Échéance`, 'when', [['all', 'Toutes'], ['today', 'Aujourd’hui'], ['week', '7 jours'], ['late', 'En retard'], ['nodate', 'Sans date']])}
+      ${grp(`${ic('folder')} Liste`, 'list', [['all', 'Toutes'], ...S.lists.map(l => [l.id, l.name, `<i class="dot" style="--c:${l.color}"></i>`])])}
+      ${grp(`${ic('flag')} Priorité`, 'prio', [[-1, 'Toutes'], [3, 'Haute'], [2, 'Moyenne'], [1, 'Basse'], [0, 'Aucune']])}
+      ${grp(`${ic('sort')} Trier par`, 'sort', Object.entries(SORT_L))}
+    </div>`, sh => {
+    const sync = () => $$('[data-fk]', sh).forEach(g => $$('.chip', g).forEach(c => c.classList.toggle('on', String(ui.f[g.dataset.fk]) === c.dataset.fv)));
+    sh.addEventListener('click', e => {
+      const c = e.target.closest('[data-fv]'); if (!c) return;
+      const k = c.closest('[data-fk]').dataset.fk;
+      ui.f[k] = k === 'prio' ? +c.dataset.fv : c.dataset.fv;
+      if (k === 'sort') pref('sort', ui.f.sort);
+      sync(); render();
+    });
+    $('#fReset', sh).addEventListener('click', () => { ui.f = { ...ui.f, status: 'open', when: 'all', prio: -1, list: 'all', sort: 'manual' }; pref('sort', 'manual'); sync(); render(); });
+  });
 }
 function renderTaskList() {
   const box = $('#tlist'); if (!box) return;
@@ -281,7 +309,6 @@ function renderTaskList() {
       : empty('listc', 'Aucune tâche', 'Ajoute ta première tâche avec le bouton +.', `<button class="btn primary sm" data-act="newTask" style="margin-top:8px">${ic('plus')} Nouvelle tâche</button>`);
   const n = a.length;
   $('#tcount').textContent = `${n} tâche${n > 1 ? 's' : ''}`;
-  $('#thint').textContent = drag && n > 1 ? 'Glisse ⋮⋮ pour changer l’ordre' : '';
   $('#clearDone').hidden = !S.tasks.some(t => t.done);
   if (drag) enableDrag($('#tl'));
 }
@@ -638,8 +665,10 @@ const ACT = {
     ui.f = { ...ui.f, q: '', prio: -1, list: 'all', status: w === 'done' ? 'done' : 'open', when: w === 'done' ? 'all' : w };
     go('tasks');
   },
+  openFilters: () => filterSheet(),
+  clearF: el => { const k = el.dataset.k; ui.f[k] = { status: 'open', when: 'all', list: 'all', prio: -1, sort: 'manual' }[k]; if (k === 'sort') pref('sort', 'manual'); render(); },
   filter: el => { const k = el.dataset.k, v = el.dataset.v; ui.f[k] = v; render(); },
-  resetFilters: () => { ui.f = { ...ui.f, q: '', status: 'open', when: 'all', prio: -1, list: 'all' }; render(); },
+  resetFilters: () => { ui.f = { ...ui.f, q: '', status: 'open', when: 'all', prio: -1, list: 'all', sort: 'manual' }; pref('sort', 'manual'); render(); },
   clearDone: () => {
     const done = S.tasks.filter(t => t.done); if (!done.length) return;
     const before = S.tasks.slice(); S.tasks = S.tasks.filter(t => !t.done); save(); render();

@@ -310,3 +310,17 @@ h2.sec .link{margin-left:auto}
 .slot b .ic{display:inline-block;width:12px;height:12px;vertical-align:-1px;stroke-width:3}
 @media (max-width:899px){.hide-narrow{display:none!important}}
 @media (max-width:760px){.stat{padding:14px;gap:8px}.stat .bub{width:32px;height:32px}.head{margin-bottom:16px}}
+
+/* Barre tâches épurée */
+.tbar{display:flex;gap:10px;margin-bottom:12px}
+.tbar .search{flex:1}
+.fbtn{height:44px;border-radius:14px;box-shadow:var(--shadow);position:relative;gap:8px}
+.fbtn.has{border-color:var(--accent);color:var(--accent);background:var(--soft)}
+.badge{min-width:20px;height:20px;padding:0 6px;border-radius:10px;background:var(--accent);color:#fff;font-size:12px;display:inline-grid;place-items:center}
+.active-f{margin-bottom:12px;align-items:center}
+.active-f .chip{height:30px;font-size:12.5px;padding:0 8px 0 12px}
+.active-f .chip .ic{width:13px;height:13px;opacity:.7}
+.listfoot{text-align:center;margin-top:14px}
+.task .grip{opacity:.3}
+.task:hover .grip{opacity:.7}
+@media (max-width:480px){.hide-xs{display:none}.fbtn{width:44px;padding:0}.fbtn .badge{position:absolute;top:-6px;right:-6px}}
