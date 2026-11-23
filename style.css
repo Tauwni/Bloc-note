@@ -399,3 +399,22 @@ body,.side,.card,.tlist,.task,.srows,.tt,.search{transition:background-color .3s
 .tlist.sorting .task,.tlist.sorting .task .chk,.tlist.sorting .task .ttl{animation:none!important}
 .ttl{display:inline;-webkit-box-decoration-break:clone;box-decoration-break:clone}
 .tbody .meta{margin-top:4px}
+
+/* Section « Terminées » */
+.done-sec{margin-top:18px}
+.done-head{display:flex;align-items:center;gap:8px;border:0;background:none;padding:8px 6px;font-weight:700;font-size:15px;color:var(--muted);border-radius:10px;width:100%;text-align:left}
+.done-head:hover{background:var(--surface2);color:var(--text)}
+.done-head .ic{width:16px;height:16px;transition:transform .25s cubic-bezier(.2,.8,.2,1)}
+.done-sec.open .done-head .ic{transform:rotate(90deg)}
+.done-head em{font-style:normal;font-size:12px;background:var(--surface2);border:1px solid var(--line);color:var(--muted);padding:1px 8px;border-radius:10px}
+.done-body{display:grid;grid-template-rows:0fr;transition:grid-template-rows .32s cubic-bezier(.2,.8,.2,1),opacity .25s;opacity:0}
+.done-sec.open .done-body{grid-template-rows:1fr;opacity:1}
+.done-inner{overflow:hidden;min-height:0}
+.done-inner .tlist{margin-top:6px}
+.done-sec .task{background:color-mix(in srgb,var(--surface) 70%,var(--bg))}
+.done-sec .task .ttl{color:var(--muted)}
+.done-sec .meta{opacity:.75}
+.listfoot{text-align:center;margin-top:12px}
+.listfoot .link{display:inline-flex;align-items:center;gap:6px;color:var(--muted)}
+.listfoot .link:hover{color:var(--red);background:color-mix(in srgb,var(--red) 8%,transparent)}
+.listfoot .ic{width:15px;height:15px}

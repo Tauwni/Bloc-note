@@ -128,8 +128,8 @@ function dueInfo(t) {
 function slotsFor(k) {
   return S.slots.filter(s => s.once ? s.once === k : s.day === wd(k)).sort((a, b) => toMin(a.start) - toMin(b.start));
 }
-function filtered() {
-  const f = ui.f, k = todayK(), wk = addDays(k, 7);
+function filtered(statusOverride) {
+  const f = { ...ui.f, ...(statusOverride ? { status: statusOverride } : {}) }, k = todayK(), wk = addDays(k, 7);
   const a = S.tasks.filter(t => {
     if (f.status === 'open' && t.done) return false;
     if (f.status === 'done' && !t.done) return false;
@@ -232,6 +232,7 @@ function vToday() {
       <h2 class="sec">${ic('listc')} À faire <small>${late.length + tod.length}</small><button class="link" data-act="nav" data-nav="tasks">Tout voir</button></h2>
       ${late.length || tod.length ? `<div class="tlist">${late.map(t => taskRow(t)).join('')}${tod.map(t => taskRow(t)).join('')}</div>`
         : empty('spark', 'Rien pour aujourd’hui', doneToday ? 'Tout est fait, bravo !' : 'Ajoute une tâche juste au-dessus.')}
+      ${doneSection(S.tasks.filter(t => t.done && t.doneAt && iso(new Date(t.doneAt)) === k).sort((x, y) => y.doneAt - x.doneAt), 'Faites aujourd’hui')}
       ${soon.length ? `<h2 class="sec" style="margin-top:22px">${ic('calendar')} Cette semaine <small>${soon.length}</small></h2><div class="tlist">${soon.map(t => taskRow(t)).join('')}</div>` : ''}
     </section>
     <section>
@@ -263,7 +264,7 @@ function vTasks() {
   </div>
   ${act.length ? `<div class="chips active-f">${act.map(([k, l]) => `<button class="chip on" data-act="clearF" data-k="${k}">${esc(l)}${ic('x')}</button>`).join('')}${act.length > 1 ? `<button class="link" data-act="resetFilters">Tout effacer</button>` : ''}</div>` : ''}
   <div id="tlist"></div>
-  <div class="listfoot"><button class="link" data-act="clearDone" id="clearDone">Supprimer les tâches terminées</button></div></div>`;
+</div>`;
 }
 const WHEN_L = { today: 'Aujourd’hui', week: '7 prochains jours', late: 'En retard', nodate: 'Sans date' };
 const SORT_L = { manual: 'Mon ordre', due: 'Échéance', prio: 'Priorité', recent: 'Plus récentes', alpha: 'A → Z' };
@@ -300,6 +301,14 @@ function filterSheet() {
     $('#fReset', sh).addEventListener('click', () => { ui.f = { ...ui.f, status: 'open', when: 'all', prio: -1, list: 'all', sort: 'manual' }; pref('sort', 'manual'); sync(); ui.restagger = true; render(); });
   });
 }
+function doneSection(list, title = 'Terminées', withClear = false) {
+  if (!list.length) return '';
+  const open = pref('doneOpen') !== '0';
+  return `<div class="done-sec ${open ? 'open' : ''}">
+    <button class="done-head" data-act="toggleDoneSec" aria-expanded="${open}">${ic('right')}<span>${title}</span><em>${list.length}</em></button>
+    <div class="done-body"><div class="done-inner"><div class="tlist">${list.map(t => taskRow(t)).join('')}</div>
+    ${withClear ? `<div class="listfoot"><button class="link" data-act="clearDone">${ic('trash')} Supprimer les tâches terminées</button></div>` : ''}</div></div></div>`;
+}
 function renderTaskList(typing) {
   const box = $('#tlist'); if (!box) return;
   box.classList.toggle('stagger', !typing);
@@ -308,9 +317,12 @@ function renderTaskList(typing) {
   box.innerHTML = a.length ? `<div class="tlist" id="tl">${a.map(t => taskRow(t, drag)).join('')}</div>`
     : filt ? empty('search', 'Aucune tâche trouvée', 'Essaie un autre filtre.', `<button class="btn sm" data-act="resetFilters" style="margin-top:8px">Réinitialiser les filtres</button>`)
       : empty('listc', 'Aucune tâche', 'Ajoute ta première tâche avec le bouton +.', `<button class="btn primary sm" data-act="newTask" style="margin-top:8px">${ic('plus')} Nouvelle tâche</button>`);
+  const doneL = ui.f.status === 'open' ? filtered('done').sort((x, y) => (y.doneAt || 0) - (x.doneAt || 0)) : [];
+  if (!a.length && doneL.length && !filt) box.innerHTML = empty('spark', 'Tout est fait !', 'Tes tâches terminées sont juste en dessous.');
+  box.insertAdjacentHTML('beforeend', doneSection(doneL, 'Terminées', true));
+  if (ui.f.status !== 'open' && S.tasks.some(t => t.done)) box.insertAdjacentHTML('beforeend', `<div class="listfoot"><button class="link" data-act="clearDone">${ic('trash')} Supprimer les tâches terminées</button></div>`);
   const n = a.length;
-  $('#tcount').textContent = `${n} tâche${n > 1 ? 's' : ''}`;
-  $('#clearDone').hidden = !S.tasks.some(t => t.done);
+  $('#tcount').textContent = ui.f.status === 'open' ? `${n} à faire${doneL.length ? ` · ${doneL.length} terminée${doneL.length > 1 ? 's' : ''}` : ''}` : `${n} tâche${n > 1 ? 's' : ''}`;
   if (drag) enableDrag($('#tl'));
 }
 function enableDrag(box) {
@@ -706,9 +718,15 @@ const ACT = {
     t.done = !t.done; t.doneAt = t.done ? Date.now() : 0; save();
     const row = el.closest('.task');
     if (row) { row.classList.toggle('done', t.done); if (t.done) row.classList.add('checked'); }
-    const hides = t.done && row && !(ui.view === 'tasks' && ui.f.status !== 'open');
-    if (hides) setTimeout(() => collapse(row, render), 380); else setTimeout(render, t.done ? 380 : 0);
-    if (t.done) toast('Tâche terminée', () => { t.done = false; t.doneAt = 0; save(); render(); });
+    const moves = row && !(ui.view === 'tasks' && ui.f.status === 'all') && !(ui.view === 'planning');
+    const go2 = () => { ui.flash = t.id; render(); };
+    if (moves) setTimeout(() => collapse(row, go2), t.done ? 380 : 120); else setTimeout(render, t.done ? 380 : 0);
+    if (t.done) toast('Tâche terminée', () => { t.done = false; t.doneAt = 0; ui.flash = t.id; save(); render(); });
+  },
+  toggleDoneSec: el => {
+    const sec = el.closest('.done-sec'), open = !sec.classList.contains('open');
+    $$('.done-sec').forEach(x => { x.classList.toggle('open', open); $('.done-head', x).setAttribute('aria-expanded', open); });
+    pref('doneOpen', open ? '1' : '0');
   },
   editTask: el => taskSheet(el.dataset.id),
   newTask: () => taskSheet(null),
