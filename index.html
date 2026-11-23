@@ -72,7 +72,7 @@ async function unlock(){
   sessionStorage.setItem(K+'ok','1');show();
 }
 function show(){$('lock').style.display='none';$('app').hidden=false;$('who').textContent=get('name','');render();$('notes').value=get('notes','')}
-$('go').onclick=unlock;$('nm').onkeydown=$('pw').onkeydown=$('pw2').onkeydown=e=>e.key==='Enter'&&unlock();
+$('go').onclick=unlock;$('nm').onkeydown=$('pw').onkeydown=$('pw2').onkeydown=e=>{if(e.key==='Enter')unlock()};
 $('out').onclick=()=>{sessionStorage.removeItem(K+'ok');location.reload()};
 if(sessionStorage.getItem(K+'ok'))show();
 
@@ -81,7 +81,7 @@ $('notes').oninput=e=>set('notes',e.target.value);
 
 const save=()=>{set('tasks',tasks);render()};
 function add(){const t=$('nt').value.trim();if(!t)return;tasks.push({id:Date.now(),t,p:+$('np').value,d:$('nd').value,done:false});$('nt').value='';$('nd').value='';save()}
-$('add').onclick=add;$('nt').onkeydown=e=>e.key==='Enter'&&add();
+$('add').onclick=add;$('nt').onkeydown=e=>{if(e.key==='Enter')add()};
 $('sortp').onclick=()=>{tasks.sort((a,b)=>a.done-b.done||b.p-a.p);save()};
 $('clr').onclick=()=>{if(confirm('Supprimer les tâches terminées ?')){tasks=tasks.filter(x=>!x.done);save()}};
 const esc=s=>s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
