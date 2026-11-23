@@ -539,3 +539,55 @@ html,body,button,a,input,select,textarea,label,.task,.slot,.chip{touch-action:ma
 .g-ttt{grid-template-rows:repeat(3,1fr)}
 .g-fusion{grid-template-rows:repeat(4,1fr)}
 .mc,.card3d,.tc{width:100%;height:100%;min-width:0;min-height:0}
+
+/* =================== Jeux : habillage soigné =================== */
+.gbox{background:linear-gradient(180deg,color-mix(in srgb,var(--g1) 14%,var(--surface)),var(--surface) 38%)}
+.gtop{border-bottom:0}
+.gtitle b{font-weight:800;letter-spacing:-.02em}
+.gscore>div{background:var(--surface);border:0;box-shadow:0 6px 18px -10px color-mix(in srgb,var(--g2) 70%,transparent),0 0 0 1px color-mix(in srgb,var(--g1) 25%,var(--line))}
+.gscore>div:first-child b{color:var(--g2)}
+.gstage{background:radial-gradient(120% 80% at 50% 0%,color-mix(in srgb,var(--g1) 16%,transparent),transparent 70%)}
+.gcanvas{border:0;border-radius:22px;box-shadow:0 24px 50px -22px color-mix(in srgb,var(--g2) 80%,#000),0 0 0 1px rgba(255,255,255,.06)}
+.gmsg{inset:0;border-radius:0;background:color-mix(in srgb,var(--surface) 35%,transparent);-webkit-backdrop-filter:blur(10px) saturate(1.2);backdrop-filter:blur(10px) saturate(1.2)}
+.gm-card{display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center;max-width:330px;width:calc(100% - 32px);padding:26px 22px 22px;border-radius:26px;background:var(--surface);box-shadow:0 30px 60px -20px rgba(0,0,0,.35),0 0 0 1px var(--line);animation:pop .35s cubic-bezier(.2,.9,.3,1.3)}
+.gm-card .gart{width:64px;height:64px;margin-top:-58px;border:4px solid var(--surface);border-radius:20px;box-sizing:content-box}
+.gm-card b{font-size:23px;font-weight:800;letter-spacing:-.02em}
+.gm-card span{color:var(--text2);font-size:14.5px;line-height:1.45}
+.gm-card span.big{font-size:40px;font-weight:900;letter-spacing:-.04em;background:linear-gradient(135deg,var(--g1),var(--g2));-webkit-background-clip:text;background-clip:text;color:transparent}
+.gm-card em{font-style:normal;font-weight:700;font-size:13.5px;color:var(--g2);background:color-mix(in srgb,var(--g1) 14%,transparent);padding:7px 14px;border-radius:999px;animation:pulseText 1.6s infinite}
+.gm-card .btn{background:linear-gradient(135deg,var(--g1),var(--g2));border:0;color:#fff;height:48px;min-width:180px;border-radius:16px;font-size:16px;box-shadow:0 12px 24px -10px var(--g2)}
+.gmsg.record .gm-card{box-shadow:0 0 0 3px #ffd166,0 30px 60px -20px rgba(0,0,0,.35)}
+.ghelp{font-weight:600}
+.gpad button{background:var(--surface);box-shadow:0 4px 12px -6px rgba(0,0,0,.25);border:0;color:var(--g2)}
+
+/* Fusion */
+.g-fusion{background:linear-gradient(160deg,#cfc8ff,#a99cf5);border:0;padding:12px;gap:11px;box-shadow:0 24px 50px -24px #5b4fe0}
+.g-fusion .cell{background:rgba(255,255,255,.28)}
+.g-fusion .tile{background:linear-gradient(180deg,color-mix(in srgb,var(--t1) 80%,#fff),var(--t1));box-shadow:0 4px 0 color-mix(in srgb,var(--t1) 70%,#000),inset 0 1px 0 rgba(255,255,255,.6)}
+:root[data-theme=dark] .g-fusion{background:linear-gradient(160deg,#3a3373,#251f52)}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]) .g-fusion{background:linear-gradient(160deg,#3a3373,#251f52)}}
+
+/* Démineur : herbe et sable */
+.g-mines{gap:3px;padding:10px;border-radius:20px;background:linear-gradient(160deg,#4f8f3a,#3b6f2b);box-shadow:0 24px 50px -24px #234a1a;box-sizing:content-box}
+.mc{border-radius:7px;background:linear-gradient(180deg,#a8e063,#7cc23f);box-shadow:inset 0 -3px 0 rgba(0,0,0,.15),inset 0 2px 0 rgba(255,255,255,.35)}
+.mc:nth-child(odd){background:linear-gradient(180deg,#b6ea72,#89cc49)}
+.mc.open{background:#f1dcb3;border:0;box-shadow:inset 0 2px 3px rgba(0,0,0,.12)}
+.mc.open:nth-child(odd){background:#ead2a4}
+.mc.boom{background:#ff8a8a!important}
+
+/* Mémoire */
+.card3d .back{background:radial-gradient(circle at 30% 25%,rgba(255,255,255,.35),transparent 40%),repeating-linear-gradient(45deg,rgba(255,255,255,.08) 0 8px,transparent 8px 16px),linear-gradient(135deg,#4fc3ff,#2a6fe0);box-shadow:0 8px 16px -8px #1d4fa8,inset 0 0 0 3px rgba(255,255,255,.25)}
+.card3d .front{box-shadow:0 8px 16px -10px rgba(0,0,0,.3)}
+
+/* Morpion */
+.g-ttt{padding:12px;border-radius:24px;background:linear-gradient(160deg,#3b2a6b,#24194a);box-shadow:0 24px 50px -24px #24194a;box-sizing:content-box}
+.tc{background:rgba(255,255,255,.07);border:0;border-radius:16px}
+.tc:not(.set):hover{background:rgba(255,255,255,.14)}
+.tc .x{color:#9c8cff;text-shadow:0 0 18px #7b6cff}
+.tc .o{color:#ffc24d;text-shadow:0 0 18px #ff9500}
+.tc.hl{background:rgba(61,220,151,.25)}
+
+/* Cartes de la bibliothèque */
+.gcard{border:0;box-shadow:0 10px 30px -18px color-mix(in srgb,var(--g2) 80%,transparent),0 0 0 1px var(--line)}
+.gcard::before{height:100%;opacity:.09;background:radial-gradient(120% 70% at 0% 0%,var(--g1),transparent 60%)}
+.gtxt small{color:var(--g2)}
