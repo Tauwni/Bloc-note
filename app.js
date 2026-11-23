@@ -189,7 +189,7 @@ function taskRow(t, drag) {
   if (t.subs.length) meta.push(`<span>${ic('subtask')}${sd}/${t.subs.length}</span>`);
   if (t.notes) meta.push(`<span>${ic('note')}</span>`);
   t.tags.slice(0, 3).forEach(g => meta.push(`<span class="tagp">#${esc(g)}</span>`));
-  return `<div class="task ${t.done ? 'done' : ''}" data-id="${t.id}">
+  return `<div class="task ${t.done ? 'done' : ''} ${ui.flash === t.id ? 'flash' : ''}" data-id="${t.id}">
     ${drag ? `<span class="grip" title="Glisser pour changer l’ordre">${ic('grip')}</span>` : ''}
     <button class="chk p${t.prio}" data-act="toggle" data-id="${t.id}" aria-label="${t.done ? 'Marquer à faire' : 'Marquer comme terminée'}">${ic('check')}</button>
     <div class="tbody" data-act="editTask" data-id="${t.id}">
@@ -202,7 +202,7 @@ function taskRow(t, drag) {
 const empty = (icon, title, text, btn = '') => `<div class="card empty fadein"><div class="bub">${ic(icon)}</div><b>${title}</b><span>${text}</span>${btn}</div>`;
 function ring(p) {
   const R = 19, C = 2 * Math.PI * R;
-  return `<div class="ring"><svg width="46" height="46" viewBox="0 0 46 46"><circle class="t" cx="23" cy="23" r="${R}" fill="none" stroke-width="6"/><circle class="f" cx="23" cy="23" r="${R}" fill="none" stroke-width="6" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${C * (1 - p)}"/></svg></div>`;
+  return `<div class="ring"><svg width="46" height="46" viewBox="0 0 46 46"><circle class="t" cx="23" cy="23" r="${R}" fill="none" stroke-width="6"/><circle class="f" cx="23" cy="23" r="${R}" fill="none" stroke-width="6" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${C * (1 - p)}" style="--C:${C}"/></svg></div>`;
 }
 
 /* ---------- Vue : Aujourd'hui ---------- */
@@ -218,7 +218,7 @@ function vToday() {
   const hello = (h < 5 ? 'Bonne nuit' : h < 18 ? 'Bonjour' : 'Bonsoir') + (S.set.name ? ', ' + esc(S.set.name) : '');
   const nextSlot = slots.find(s => toMin(s.end) > nm);
 
-  return `<div class="fadein">
+  return `<div class="fadein stagger">
   <header class="head"><div><h1>${hello}</h1><p>${fmt(k, { weekday: 'long', day: 'numeric', month: 'long' })}${nextSlot ? ` · ${toMin(nextSlot.start) <= nm ? 'en ce moment' : 'prochain cours à ' + esc(nextSlot.start)} : ${esc(nextSlot.title)}` : ''}</p></div></header>
   <div class="stats">
     <button class="card stat" data-act="goFilter" data-when="today"><div class="top"><span class="bub" style="--c:var(--accent)">${ic('sun')}</span></div><b>${tod.length}</b><span>Pour aujourd’hui</span></button>
@@ -254,7 +254,7 @@ function vTasks() {
   const cnt = fn => S.tasks.filter(fn).length;
   const when = [['all', 'Tout', 'layers'], ['today', 'Aujourd’hui', 'sun', cnt(t => !t.done && t.due === k)], ['week', '7 jours', 'calendar'], ['late', 'En retard', 'alert', cnt(t => !t.done && t.due && t.due < k)], ['nodate', 'Sans date', 'inbox']];
   const act = activeFilters();
-  return `<div class="fadein">
+  return `<div class="fadein stagger">
   <header class="head"><div><h1>Tâches</h1><p><span id="tcount"></span></p></div>
     <div class="actions hide-narrow"><button class="btn primary" data-act="newTask">${ic('plus')} Nouvelle tâche</button></div></header>
   <div class="tbar">
@@ -295,13 +295,14 @@ function filterSheet() {
       const k = c.closest('[data-fk]').dataset.fk;
       ui.f[k] = k === 'prio' ? +c.dataset.fv : c.dataset.fv;
       if (k === 'sort') pref('sort', ui.f.sort);
-      sync(); render();
+      sync(); ui.restagger = true; render();
     });
-    $('#fReset', sh).addEventListener('click', () => { ui.f = { ...ui.f, status: 'open', when: 'all', prio: -1, list: 'all', sort: 'manual' }; pref('sort', 'manual'); sync(); render(); });
+    $('#fReset', sh).addEventListener('click', () => { ui.f = { ...ui.f, status: 'open', when: 'all', prio: -1, list: 'all', sort: 'manual' }; pref('sort', 'manual'); sync(); ui.restagger = true; render(); });
   });
 }
-function renderTaskList() {
+function renderTaskList(typing) {
   const box = $('#tlist'); if (!box) return;
+  box.classList.toggle('stagger', !typing);
   const a = filtered(), drag = ui.f.sort === 'manual';
   const filt = ui.f.q || ui.f.when !== 'all' || ui.f.prio >= 0 || ui.f.list !== 'all' || ui.f.status !== 'open';
   box.innerHTML = a.length ? `<div class="tlist" id="tl">${a.map(t => taskRow(t, drag)).join('')}</div>`
@@ -314,32 +315,78 @@ function renderTaskList() {
 }
 function enableDrag(box) {
   if (!box) return;
+  const EASE = 'transform .24s cubic-bezier(.2,.8,.2,1)';
   $$('.grip', box).forEach(h => h.addEventListener('pointerdown', e => {
     e.preventDefault();
     const row = h.closest('.task');
+    const r0 = row.getBoundingClientRect();
+    const grab = e.clientY - r0.top;
+    let ty = 0;
     row.classList.add('dragging');
+    row.style.transition = 'box-shadow .2s, background .2s';
+    box.classList.add('sorting');
+    $$('.stagger').forEach(x => x.classList.toggle('stagger', false));
+    try { navigator.vibrate?.(8); } catch (_) { /* */ }
     try { h.setPointerCapture(e.pointerId); } catch (_) { /* */ }
+    const top0 = () => box.getBoundingClientRect().top + box.clientTop;
+    const place = y => {
+      ty = y - top0() - grab - row.offsetTop;
+      row.style.transform = `translateY(${ty}px) scale(1.03)`;
+    };
     const move = ev => {
-      const y = ev.clientY;
+      const y = ev.clientY, bt = top0();
+      const center = y - bt - grab + row.offsetHeight / 2;
+      const others = $$('.task:not(.dragging)', box);
       let before = null;
-      for (const r of $$('.task:not(.dragging)', box)) { const b = r.getBoundingClientRect(); if (y < b.top + b.height / 2) { before = r; break; } }
-      if (before !== row.nextSibling) box.insertBefore(row, before);
-      if (y < 70) window.scrollBy(0, -12); else if (y > innerHeight - 110) window.scrollBy(0, 12);
+      for (const r of others) { if (center < r.offsetTop + r.offsetHeight / 2) { before = r; break; } }
+      if (before !== row.nextElementSibling) {
+        const first = new Map(others.map(r => [r, r.getBoundingClientRect().top]));
+        box.insertBefore(row, before);
+        others.forEach(r => {
+          const dy = first.get(r) - (bt + r.offsetTop);
+          if (Math.abs(dy) < 1) return;
+          r.style.transition = 'none';
+          r.style.transform = `translateY(${dy}px)`;
+          void r.offsetWidth;
+          r.style.transition = EASE;
+          r.style.transform = '';
+        });
+        try { navigator.vibrate?.(4); } catch (_) { /* */ }
+      }
+      place(y);
+      if (y < 80) window.scrollBy(0, -10); else if (y > innerHeight - 120) window.scrollBy(0, 10);
     };
     const up = () => {
-      h.removeEventListener('pointermove', move);
+      row.style.transition = EASE + ', box-shadow .25s';
+      row.style.transform = '';
       row.classList.remove('dragging');
+      row.classList.add('dropped');
+      box.classList.remove('sorting');
+      setTimeout(() => { row.classList.remove('dropped'); row.style.transition = ''; $$('.task', box).forEach(r => { r.style.transition = ''; }); }, 420);
       const ids = $$('.task', box).map(r => r.dataset.id);
       const vis = ids.map(id => S.tasks.find(t => t.id === id)).filter(Boolean);
-      const orders = vis.map(t => t.order).sort((a, b) => a - b);
+      const orders = vis.map(t => t.order).sort((x, y) => x - y);
       vis.forEach((t, i) => { t.order = orders[i]; });
       save();
     };
-    h.addEventListener('pointermove', move);
-    h.addEventListener('pointerup', up, { once: true });
-    h.addEventListener('pointercancel', up, { once: true });
+    const end = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', end); window.removeEventListener('pointercancel', end); up(); };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', end);
+    window.addEventListener('pointercancel', end);
   }));
 }
+
+/* ---------- Petites animations ---------- */
+function collapse(el, done) {
+  if (!el || matchMedia('(prefers-reduced-motion: reduce)').matches) { done(); return; }
+  el.style.height = el.offsetHeight + 'px';
+  el.style.overflow = 'hidden';
+  void el.offsetHeight;
+  el.classList.add('leaving');
+  el.style.height = '0px';
+  setTimeout(done, 280);
+}
+const rowOf = id => document.querySelector(`#main .task[data-id="${CSS.escape(id)}"]`);
 
 /* ---------- Vue : Emploi du temps ---------- */
 function weekDays() {
@@ -388,7 +435,7 @@ function vPlanning() {
     ${untimed.length ? `<h2 class="sec" style="margin-top:22px">${ic('listc')} Tâches du jour <small>${untimed.length}</small></h2><div class="tlist">${untimed.map(t => taskRow(t)).join('')}</div>` : ''}
   </div>`;
 
-  return `<div class="fadein">
+  return `<div class="fadein stagger">
   <header class="head"><div><h1>Emploi du temps</h1><p>Semaine du ${range}</p></div>
     <div class="actions">
       <div class="weeknav"><button class="btn icon" data-act="week" data-v="-1" aria-label="Semaine précédente">${ic('left')}</button><button class="btn" data-act="week" data-v="0">Aujourd’hui</button><button class="btn icon" data-act="week" data-v="1" aria-label="Semaine suivante">${ic('right')}</button></div>
@@ -400,7 +447,7 @@ function vPlanning() {
 
 /* ---------- Vue : Notes ---------- */
 function vNotes() {
-  return `<div class="fadein">
+  return `<div class="fadein stagger">
   <header class="head"><div><h1>Notes</h1><p id="ncount"></p></div><div class="actions hide-narrow"><button class="btn primary" data-act="newNote">${ic('plus')} Nouvelle note</button></div></header>
   <div class="toolbar"><label class="search">${ic('search')}<input id="nq" type="search" placeholder="Rechercher dans les notes…" value="${esc(ui.noteQ)}" autocomplete="off"></label></div>
   <div id="nlist"></div></div>`;
@@ -419,7 +466,7 @@ function renderNotes() {
 /* ---------- Vue : Réglages ---------- */
 function vSettings() {
   const st = S.set;
-  return `<div class="fadein" style="max-width:720px">
+  return `<div class="fadein stagger" style="max-width:720px">
   <header class="head"><div><h1>Réglages</h1><p>Personnalise ton Bloc Note</p></div></header>
   <div class="sgroup"><h3>Profil</h3><div class="srows">
     <div class="srow"><div class="lbl"><span class="sic" style="--c:#5b5bd6">${ic('user')}</span><div>Ton prénom<small>Pour le message d’accueil</small></div></div><input type="text" id="sName" value="${esc(st.name)}" placeholder="Prénom" maxlength="30"></div>
@@ -451,8 +498,8 @@ function vSettings() {
 /* ---------- Feuilles (modales) ---------- */
 let sheetClose = null;
 function openSheet(html, mount, onClose) {
-  closeSheet(true);
   const root = $('#sheetRoot');
+  if (sheetOpen()) { sheetClose = null; root.innerHTML = ''; }
   root.innerHTML = `<div class="overlay"><div class="sheet" role="dialog" aria-modal="true">${html}</div></div>`;
   const ov = $('.overlay', root);
   ov.addEventListener('pointerdown', e => { if (e.target === ov) closeSheet(); });
@@ -461,11 +508,14 @@ function openSheet(html, mount, onClose) {
   document.body.style.overflow = 'hidden';
   mount && mount($('.sheet', ov));
 }
+const sheetOpen = () => !!$('#sheetRoot .overlay:not(.closing)');
 function closeSheet(silent) {
   const root = $('#sheetRoot');
-  if (!root.firstChild) return;
+  const ov = $('.overlay:not(.closing)', root);
+  if (!ov) return;
   const cb = sheetClose; sheetClose = null;
-  root.innerHTML = '';
+  ov.classList.add('closing');
+  setTimeout(() => ov.remove(), 260);
   document.body.style.overflow = '';
   if (!silent && cb) cb();
 }
@@ -519,7 +569,7 @@ function taskSheet(id, preset = {}) {
         list: $('#tL', sh).value, tags: $('#tG', sh).value.split(',').map(s => s.trim().replace(/^#/, '')).filter(Boolean), subs: t.subs
       };
       if (src) Object.assign(src, data);
-      else S.tasks.push({ id: uid(), ...data, done: false, doneAt: 0, created: Date.now(), order: nextOrder() });
+      else { const nid = uid(); ui.flash = nid; S.tasks.push({ id: nid, ...data, done: false, doneAt: 0, created: Date.now(), order: nextOrder() }); }
       save(); closeSheet(true); render(); toast(src ? 'Tâche modifiée' : 'Tâche ajoutée');
     };
     $('#tSave', sh).addEventListener('click', doSave);
@@ -530,8 +580,9 @@ function taskSheet(id, preset = {}) {
 }
 function removeTask(id) {
   const i = S.tasks.findIndex(t => t.id === id); if (i < 0) return;
-  const [t] = S.tasks.splice(i, 1); save(); render();
-  toast('Tâche supprimée', () => { S.tasks.splice(i, 0, t); save(); render(); });
+  const [t] = S.tasks.splice(i, 1); save();
+  collapse(rowOf(id), render);
+  toast('Tâche supprimée', () => { S.tasks.splice(i, 0, t); ui.flash = t.id; save(); render(); });
 }
 
 function slotSheet(id, preset = {}) {
@@ -639,10 +690,11 @@ function toast(msg, undo) {
   const el = document.createElement('div');
   el.className = 'toast';
   el.innerHTML = `${ic('check')}<span>${esc(msg)}</span>${undo ? `<button>${'Annuler'}</button>` : ''}`;
-  if (undo) $('button', el).addEventListener('click', () => { undo(); el.remove(); });
+  const out = () => { el.classList.add('out'); setTimeout(() => el.remove(), 220); };
+  if (undo) $('button', el).addEventListener('click', () => { undo(); out(); });
   box.appendChild(el);
   while (box.children.length > 2) box.firstChild.remove();
-  setTimeout(() => el.remove(), undo ? 5000 : 2200);
+  setTimeout(out, undo ? 5000 : 2200);
 }
 
 /* ---------- Actions ---------- */
@@ -653,8 +705,9 @@ const ACT = {
     const t = S.tasks.find(x => x.id === el.dataset.id); if (!t) return;
     t.done = !t.done; t.doneAt = t.done ? Date.now() : 0; save();
     const row = el.closest('.task');
-    if (row) row.classList.toggle('done', t.done);
-    setTimeout(render, t.done ? 260 : 0);
+    if (row) { row.classList.toggle('done', t.done); if (t.done) row.classList.add('checked'); }
+    const hides = t.done && row && !(ui.view === 'tasks' && ui.f.status !== 'open');
+    if (hides) setTimeout(() => collapse(row, render), 380); else setTimeout(render, t.done ? 380 : 0);
     if (t.done) toast('Tâche terminée', () => { t.done = false; t.doneAt = 0; save(); render(); });
   },
   editTask: el => taskSheet(el.dataset.id),
@@ -666,7 +719,7 @@ const ACT = {
     go('tasks');
   },
   openFilters: () => filterSheet(),
-  clearF: el => { const k = el.dataset.k; ui.f[k] = { status: 'open', when: 'all', list: 'all', prio: -1, sort: 'manual' }[k]; if (k === 'sort') pref('sort', 'manual'); render(); },
+  clearF: el => { const k = el.dataset.k; ui.f[k] = { status: 'open', when: 'all', list: 'all', prio: -1, sort: 'manual' }[k]; if (k === 'sort') pref('sort', 'manual'); ui.restagger = true; render(); },
   filter: el => { const k = el.dataset.k, v = el.dataset.v; ui.f[k] = v; render(); },
   resetFilters: () => { ui.f = { ...ui.f, q: '', status: 'open', when: 'all', prio: -1, list: 'all', sort: 'manual' }; pref('sort', 'manual'); render(); },
   clearDone: () => {
@@ -708,7 +761,8 @@ function quickAdd() {
   const inp = $('#quickAdd'); if (!inp) return;
   const raw = inp.value.trim(); if (!raw) return shake(inp);
   const p = quickParse(raw); if (!p.title) return shake(inp);
-  S.tasks.push({ id: uid(), title: p.title, notes: '', prio: p.prio, due: p.due || todayK(), time: p.time, list: p.list || S.lists[0]?.id || '', tags: [], subs: [], done: false, doneAt: 0, created: Date.now(), order: nextOrder() });
+  ui.flash = uid();
+  S.tasks.push({ id: ui.flash, title: p.title, notes: '', prio: p.prio, due: p.due || todayK(), time: p.time, list: p.list || S.lists[0]?.id || '', tags: [], subs: [], done: false, doneAt: 0, created: Date.now(), order: nextOrder() });
   save(); render(); toast('Tâche ajoutée');
   setTimeout(() => $('#quickAdd')?.focus(), 30);
 }
@@ -722,12 +776,12 @@ document.addEventListener('click', e => {
   fn(el, e);
 });
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape' && $('#sheetRoot').firstChild) closeSheet();
+  if (e.key === 'Escape' && sheetOpen()) closeSheet();
   if (e.key === 'Enter' && e.target.id === 'quickAdd') { e.preventDefault(); quickAdd(); }
 });
 document.addEventListener('input', e => {
   const t = e.target;
-  if (t.id === 'tq') { ui.f.q = t.value; renderTaskList(); }
+  if (t.id === 'tq') { ui.f.q = t.value; renderTaskList(true); }
   else if (t.id === 'nq') { ui.noteQ = t.value; renderNotes(); }
   else if (t.id === 'sName') { S.set.name = t.value.trim(); save(); }
 });
@@ -787,10 +841,13 @@ function render() {
   const sy = $('#ttScroll')?.scrollTop;
   main.innerHTML = V();
   if (main.dataset.view === ui.view) $$('.fadein', main).forEach(e => e.classList.toggle('fadein', false));
+  const sameView = main.dataset.view === ui.view;
   main.dataset.view = ui.view;
+  if (sameView) $$('.stagger', main).forEach(e => e.classList.toggle('stagger', false));
+  if (ui.flash) { const f = ui.flash; setTimeout(() => { if (ui.flash === f) ui.flash = null; }, 50); }
   renderSide();
   $('.fab').hidden = ui.view === 'settings';
-  if (ui.view === 'tasks') renderTaskList();
+  if (ui.view === 'tasks') { renderTaskList(sameView && !ui.restagger); ui.restagger = false; }
   if (ui.view === 'notes') renderNotes();
   if (ui.view === 'planning') {
     const sc = $('#ttScroll');
@@ -801,4 +858,4 @@ paintIcons();
 render();
 // Rafraîchit l'heure (ligne rouge, cours en cours) chaque minute
 let lastDay = todayK();
-setInterval(() => { if (!$('#sheetRoot').firstChild && !document.activeElement?.matches('input,textarea,select')) { if (todayK() !== lastDay) { lastDay = todayK(); ui.week = 0; } if (ui.view === 'today' || ui.view === 'planning') render(); } }, 60000);
+setInterval(() => { if (!sheetOpen() && !document.activeElement?.matches('input,textarea,select')) { if (todayK() !== lastDay) { lastDay = todayK(); ui.week = 0; } if (ui.view === 'today' || ui.view === 'planning') render(); } }, 60000);

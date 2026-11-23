@@ -305,7 +305,7 @@ h2.sec .link{margin-left:auto}
 .toast button{border:0;background:rgba(255,255,255,.14);color:#fff;font-weight:700;border-radius:9px;padding:6px 11px}
 .toast .ic{width:18px;height:18px;color:var(--green)}
 
-.fadein{animation:fade .25s}
+.fadein{animation:viewin .35s cubic-bezier(.2,.8,.2,1)}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 .slot b .ic{display:inline-block;width:12px;height:12px;vertical-align:-1px;stroke-width:3}
 @media (max-width:899px){.hide-narrow{display:none!important}}
@@ -324,3 +324,78 @@ h2.sec .link{margin-left:auto}
 .task .grip{opacity:.3}
 .task:hover .grip{opacity:.7}
 @media (max-width:480px){.hide-xs{display:none}.fbtn{width:44px;padding:0}.fbtn .badge{position:absolute;top:-6px;right:-6px}}
+
+/* =================== Animations =================== */
+@keyframes viewin{from{opacity:0;transform:translateY(10px)}}
+@keyframes rise{from{opacity:0;transform:translateY(12px) scale(.985)}}
+@keyframes flash{0%{background:color-mix(in srgb,var(--accent) 22%,var(--surface));transform:scale(.97);opacity:0}40%{opacity:1;transform:scale(1)}100%{background:var(--surface)}}
+@keyframes checkpop{0%{transform:scale(1)}40%{transform:scale(1.28)}100%{transform:scale(1)}}
+@keyframes drop{0%{transform:scale(1.03)}55%{transform:scale(.99)}100%{transform:scale(1)}}
+@keyframes ringin{from{stroke-dashoffset:var(--C)}}
+@keyframes sheetout{to{opacity:0;transform:translateY(18px) scale(.98)}}
+@keyframes sheetdown{to{transform:translateY(100%)}}
+@keyframes fadeout{to{opacity:0}}
+@keyframes toastout{to{opacity:0;transform:translateY(10px) scale(.96)}}
+@keyframes tabbounce{0%{transform:scale(1)}35%{transform:scale(.82)}70%{transform:scale(1.12)}100%{transform:scale(1)}}
+
+/* Cascade des éléments à l'ouverture d'un écran */
+.stagger .task,.stagger .stat,.stagger .aitem,.stagger .ncard,.stagger .srows,.stagger .quick,.stagger .tt,.stagger .daystrip,.stagger .empty{animation:rise .42s cubic-bezier(.2,.8,.2,1) both}
+.stagger :is(.task,.stat,.aitem,.ncard,.srows):nth-child(2){animation-delay:.04s}
+.stagger :is(.task,.stat,.aitem,.ncard,.srows):nth-child(3){animation-delay:.08s}
+.stagger :is(.task,.stat,.aitem,.ncard,.srows):nth-child(4){animation-delay:.12s}
+.stagger :is(.task,.stat,.aitem,.ncard,.srows):nth-child(5){animation-delay:.16s}
+.stagger :is(.task,.stat,.aitem,.ncard,.srows):nth-child(6){animation-delay:.2s}
+.stagger :is(.task,.stat,.aitem,.ncard,.srows):nth-child(n+7){animation-delay:.24s}
+
+/* Glisser-déposer */
+.task{will-change:auto}
+.tlist.sorting{overflow:visible}
+.tlist.sorting .task:not(.dragging){transition:transform .24s cubic-bezier(.2,.8,.2,1)}
+.task.dragging{position:relative;z-index:10;border-radius:14px;background:var(--surface);box-shadow:0 18px 40px -12px rgba(17,17,40,.35),0 0 0 1.5px var(--accent);cursor:grabbing;transform-origin:center}
+.task.dragging .grip{opacity:1;color:var(--accent)}
+.task.dropped{animation:drop .4s cubic-bezier(.2,.8,.2,1)}
+.grip{transition:opacity .2s,color .2s}
+
+/* Cocher / ajouter / supprimer */
+.task.flash{animation:flash 1.1s ease-out}
+.task.checked .chk{animation:checkpop .38s cubic-bezier(.2,.8,.2,1.4)}
+.chk .ic{transition:transform .25s cubic-bezier(.2,.8,.2,1.4)}
+.task:not(.done) .chk .ic{transform:scale(.4)}
+.task.done .chk .ic{transform:scale(1)}
+.ttl{background:linear-gradient(currentColor,currentColor) 0 55%/0 1.5px no-repeat;transition:background-size .3s ease,color .3s}
+.task.done .ttl{text-decoration:none;background-size:100% 1.5px}
+.task.leaving{transition:height .28s cubic-bezier(.4,0,.2,1),opacity .2s,padding .28s,transform .28s;opacity:0;padding-top:0;padding-bottom:0;transform:translateX(24px)}
+.sub .chk .ic{transition:transform .2s}
+.sub:not(.done) .chk .ic{transform:scale(.4)}
+
+/* Panneaux, toasts, onglets */
+.overlay.closing{animation:fadeout .25s forwards;pointer-events:none}
+.overlay.closing .sheet{animation:sheetout .22s forwards}
+@media (max-width:640px){.overlay.closing .sheet{animation:sheetdown .26s cubic-bezier(.4,0,1,1) forwards}}
+.toast.out{animation:toastout .22s forwards}
+.tabbar button .ic,.side-nav button .ic{transition:transform .2s}
+.tabbar button:active .ic{animation:tabbounce .35s}
+.tabbar button.on .ic{transform:translateY(-1px)}
+.side-nav button{transition:background .2s,color .2s,transform .1s}
+.side-nav button:active{transform:scale(.97)}
+
+/* Petits détails */
+.chip,.seg button,.prio button,.daystrip b,.sw{transition:background .2s,color .2s,border-color .2s,box-shadow .2s,transform .12s}
+.chip:active,.seg button:active,.prio button:active,.daystrip button:active,.sw:active{transform:scale(.94)}
+.sw:hover{transform:scale(1.1)}
+.card.stat:active,.ncard:active,.aitem:active{transform:scale(.98)}
+.aitem{transition:transform .15s,box-shadow .2s,border-color .2s}
+.aitem:hover{transform:translateY(-1px)}
+.ring .f{animation:ringin .9s .15s cubic-bezier(.2,.8,.2,1) both}
+.badge{animation:checkpop .35s}
+.active-f .chip{animation:rise .3s both}
+.now::before{animation:pulse 2s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(255,59,48,.5)}70%{box-shadow:0 0 0 8px rgba(255,59,48,0)}100%{box-shadow:0 0 0 0 rgba(255,59,48,0)}}
+body,.side,.card,.tlist,.task,.srows,.tt,.search{transition:background-color .3s,border-color .3s,color .3s}
+.fab{transition:transform .2s cubic-bezier(.2,.8,.2,1.4),box-shadow .2s}
+.fab:hover{transform:scale(1.08) rotate(90deg)}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+.tlist{position:relative}
+.tlist.sorting .task,.tlist.sorting .task .chk,.tlist.sorting .task .ttl{animation:none!important}
+.ttl{display:inline;-webkit-box-decoration-break:clone;box-decoration-break:clone}
+.tbody .meta{margin-top:4px}
