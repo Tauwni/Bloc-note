@@ -629,12 +629,14 @@ function slotSheet(id, preset = {}) {
   delete s.date;
   let date = s.once || preset.date || addDays(mondayOf(base), s.day);
   const rep = !s.once;
+  const days = new Set([s.day]);
   openSheet(`
     <div class="sh-head"><button class="btn ghost" data-close>Annuler</button><h3>${id ? 'Modifier le créneau' : 'Nouveau créneau'}</h3><button class="btn primary sm" id="sSave">${id ? 'Enregistrer' : 'Ajouter'}</button></div>
     <div class="sh-body">
       <input class="big" id="sT" placeholder="Nom du cours ou de l’activité" value="${esc(s.title)}" autocomplete="off">
       <div class="field"><label>${ic('repeat')} Répétition</label><div class="seg" id="sR"><button type="button" data-r="1" class="${rep ? 'on' : ''}">Chaque semaine</button><button type="button" data-r="0" class="${rep ? '' : 'on'}">Une seule fois</button></div></div>
-      <div class="field"><label>${ic('calendar')} Jour</label><div class="daychips" id="sDay">${DAYS.map((d, i) => `<button type="button" class="chip ${s.day === i ? 'on' : ''}" data-day="${i}">${d}</button>`).join('')}</div>
+      <div class="field"><label>${ic('calendar')} Jour(s) <span class="lblnote">plusieurs possibles</span></label><div class="daychips" id="sDay">${DAYS.map((d, i) => `<button type="button" class="chip ${s.day === i ? 'on' : ''}" data-day="${i}">${d}</button>`).join('')}</div>
+        <div class="dayquick"><button type="button" class="link" data-q="week">Lun → Ven</button><button type="button" class="link" data-q="all">Tous les jours</button><button type="button" class="link" data-q="one">Un seul jour</button></div>
         <div id="sDateF" ${rep ? 'hidden' : ''}><input type="date" id="sDate" value="${esc(date)}" aria-label="Date"></div>
         <small class="hint" id="sHint"></small></div>
       <div class="grid2"><div class="field"><label>${ic('clock')} Début</label><input type="time" id="sA" value="${esc(s.start)}"></div><div class="field"><label>${ic('clock')} Fin</label><input type="time" id="sB" value="${esc(s.end)}"></div></div>
@@ -644,21 +646,46 @@ function slotSheet(id, preset = {}) {
       ${id ? `<button class="btn danger wide" id="sDel">${ic('trash')} Supprimer le créneau</button>` : ''}
     </div>`, sh => {
     let repeat = rep;
+    const sorted = () => [...days].sort((x, y) => x - y);
+    const dateOf = d => addDays(mondayOf(date), d);
     const hint = () => {
-      const hol = !repeat && holiday(date);
-      $('#sHint', sh).textContent = repeat ? `Tous les ${DAYS[s.day].toLowerCase()}s` : fmt(date, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).replace(/^./, c => c.toUpperCase()) + (hol ? ` · jour férié (${hol})` : '');
-      $$('#sDay .chip', sh).forEach(x => x.classList.toggle('on', +x.dataset.day === s.day));
+      const ds = sorted();
+      let txt;
+      if (repeat) {
+        const names = ds.map(d => DAYS[d].toLowerCase() + 's');
+        txt = ds.length === 7 ? 'Tous les jours' : ds.join() === '0,1,2,3,4' ? 'Du lundi au vendredi, chaque semaine' : 'Tous les ' + (names.length > 1 ? names.slice(0, -1).join(', ') + ' et ' + names.at(-1) : names[0]);
+      } else {
+        const list = ds.map(d => dateOf(d));
+        txt = list.length === 1
+          ? fmt(list[0], { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).replace(/^./, c => c.toUpperCase())
+          : list.map(k => fmt(k, { weekday: 'short', day: 'numeric' })).join(', ') + ' ' + fmt(list.at(-1), { month: 'long' });
+        const hols = list.filter(k => holiday(k));
+        if (hols.length) txt += ` · férié : ${hols.map(k => holiday(k)).join(', ')}`;
+      }
+      if (ds.length > 1) txt += ` · ${ds.length} créneaux`;
+      $('#sHint', sh).textContent = txt;
+      $$('#sDay .chip', sh).forEach(x => x.classList.toggle('on', days.has(+x.dataset.day)));
+      $('#sSave', sh).textContent = src ? 'Enregistrer' : ds.length > 1 ? `Ajouter (${ds.length})` : 'Ajouter';
     };
     hint();
     $('#sR', sh).addEventListener('click', e => { const b = e.target.closest('[data-r]'); if (!b) return; repeat = b.dataset.r === '1'; $$('#sR button', sh).forEach(x => x.classList.toggle('on', x === b)); $('#sDateF', sh).hidden = repeat; hint(); });
     $('#sDay', sh).addEventListener('click', e => {
       const b = e.target.closest('[data-day]'); if (!b) return;
-      s.day = +b.dataset.day;
-      date = addDays(mondayOf(date), s.day);
+      const d = +b.dataset.day;
+      if (days.has(d)) { if (days.size > 1) days.delete(d); } else days.add(d);
+      date = dateOf(sorted()[0]);
       $('#sDate', sh).value = date;
       hint();
     });
-    $('#sDate', sh).addEventListener('change', e => { if (!e.target.value) return; date = e.target.value; s.day = wd(date); hint(); });
+    $('.dayquick', sh).addEventListener('click', e => {
+      const b = e.target.closest('[data-q]'); if (!b) return;
+      const keep = sorted()[0];
+      days.clear();
+      ({ week: [0, 1, 2, 3, 4], all: [0, 1, 2, 3, 4, 5, 6], one: [keep] })[b.dataset.q].forEach(d => days.add(d));
+      date = dateOf(sorted()[0]); $('#sDate', sh).value = date;
+      hint();
+    });
+    $('#sDate', sh).addEventListener('change', e => { if (!e.target.value) return; date = e.target.value; days.clear(); days.add(wd(date)); hint(); });
     $('#sC', sh).addEventListener('click', e => { const b = e.target.closest('[data-c]'); if (!b) return; s.color = b.dataset.c; $$('#sC .sw', sh).forEach(x => x.classList.toggle('on', x === b)); });
     $('#sA', sh).addEventListener('change', () => { const a = toMin($('#sA', sh).value), b = toMin($('#sB', sh).value); if (b <= a) { const e = Math.min(a + 60, 23 * 60 + 59); $('#sB', sh).value = pad(Math.floor(e / 60)) + ':' + pad(e % 60); } });
     $('#sSave', sh).addEventListener('click', () => {
@@ -667,10 +694,15 @@ function slotSheet(id, preset = {}) {
       const a = $('#sA', sh).value, b = $('#sB', sh).value;
       if (!a || !b || toMin(b) <= toMin(a)) return shake($('#sB', sh));
       if (!repeat && !date) return shake($('#sDate', sh));
-      const data = { title, start: a, end: b, place: $('#sP', sh).value.trim(), color: s.color, note: $('#sN', sh).value.trim(), once: repeat ? '' : date, day: repeat ? s.day : wd(date) };
+      const ds = sorted();
+      const common = { title, start: a, end: b, place: $('#sP', sh).value.trim(), color: s.color, note: $('#sN', sh).value.trim() };
+      const make = d => ({ ...common, once: repeat ? '' : dateOf(d), day: d });
+      s.day = ds[0]; date = dateOf(ds[0]);
       if (!src) { const wk = Math.round((D(mondayOf(repeat ? addDays(mondayOf(base), s.day) : date)) - D(mondayOf(todayK()))) / (7 * 864e5)); ui.day = repeat ? addDays(mondayOf(base), s.day) : date; if (!repeat) ui.week = wk; }
-      if (src) Object.assign(src, data); else S.slots.push({ id: uid(), ...data });
-      save(); closeSheet(true); render(); toast(src ? 'Créneau modifié' : 'Créneau ajouté');
+      if (src) { Object.assign(src, make(ds[0])); ds.slice(1).forEach(d => S.slots.push({ id: uid(), ...make(d) })); }
+      else ds.forEach(d => S.slots.push({ id: uid(), ...make(d) }));
+      save(); closeSheet(true); render();
+      toast(ds.length > 1 ? `${src ? 'Créneau modifié et copié' : ds.length + ' créneaux ajoutés'}` : src ? 'Créneau modifié' : 'Créneau ajouté');
     });
     if (src) $('#sDel', sh).addEventListener('click', () => {
       const i = S.slots.indexOf(src); S.slots.splice(i, 1); save(); closeSheet(true); render();

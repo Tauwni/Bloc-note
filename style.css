@@ -435,3 +435,8 @@ body,.side,.card,.tlist,.task,.srows,.tt,.search{transition:background-color .3s
 .holbanner small{color:var(--muted)}
 .hint{color:var(--accent);font-weight:600;font-size:13.5px;min-height:1.2em}
 #sDateF input{margin-top:2px}
+
+.lblnote{text-transform:none;letter-spacing:0;font-weight:500;color:var(--muted);opacity:.8;margin-left:4px}
+.dayquick{display:flex;gap:4px;flex-wrap:wrap;margin:-2px 0 2px}
+.dayquick .link{font-size:13px;padding:3px 8px}
+#sDay .chip.on{background:var(--accent);color:#fff}
