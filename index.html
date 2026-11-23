@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bloc Note</title>
+<style>
+:root{--bg:#f4f5f7;--card:#fff;--txt:#1d2230;--mut:#6b7280;--acc:#4f46e5;--bd:#e5e7eb;--hi:#ef4444;--md:#f59e0b;--lo:#10b981}
+@media (prefers-color-scheme:dark){:root{--bg:#111318;--card:#1b1e26;--txt:#e8eaf0;--mut:#9aa0ad;--bd:#2c303b}}
+*{box-sizing:border-box}body{margin:0;font-family:system-ui,sans-serif;background:var(--bg);color:var(--txt)}
+.wrap{max-width:720px;margin:0 auto;padding:24px 16px}
+h1{font-size:1.6rem;margin:0 0 16px;display:flex;justify-content:space-between;align-items:center}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:16px;margin-bottom:12px}
+input,select,textarea,button{font:inherit;border-radius:8px;border:1px solid var(--bd);padding:10px;background:var(--card);color:var(--txt)}
+button{background:var(--acc);color:#fff;border:none;cursor:pointer}button.ghost{background:transparent;color:var(--mut);border:1px solid var(--bd)}
+.row{display:flex;gap:8px;flex-wrap:wrap}.row input[type=text]{flex:1;min-width:180px}
+#lock{display:flex;min-height:100vh;align-items:center;justify-content:center}
+#lock .card{width:100%;max-width:340px;text-align:center}#lock input{width:100%;margin:12px 0}
+.err{color:var(--hi);min-height:1.2em;font-size:.9rem}
+ul{list-style:none;padding:0;margin:0}
+li{display:flex;align-items:center;gap:10px;padding:10px;border:1px solid var(--bd);border-left:5px solid var(--mut);border-radius:10px;margin-bottom:8px;background:var(--card)}
+li.p3{border-left-color:var(--hi)}li.p2{border-left-color:var(--md)}li.p1{border-left-color:var(--lo)}
+li.done .t{text-decoration:line-through;color:var(--mut)}li.drag{opacity:.4}
+.t{flex:1;word-break:break-word}.t small{display:block;color:var(--mut)}
+.h{cursor:grab;color:var(--mut);user-select:none}
+.ic{background:none;color:var(--mut);padding:4px 6px}
+.tabs{display:flex;gap:6px;margin-bottom:12px}.tabs button.on{background:var(--acc)}.tabs button:not(.on){background:var(--card);color:var(--txt);border:1px solid var(--bd)}
+textarea{width:100%;min-height:200px}
+</style>
+</head>
+<body>
+<div id="lock"><div class="card">
+  <h2 id="lt">🔒 Bloc Note</h2>
+  <p id="ld" style="color:var(--mut)">Connecte-toi avec ton prénom et ton code perso</p>
+  <input id="nm" placeholder="Prénom" maxlength="40" autocomplete="username">
+  <input type="password" id="pw" placeholder="Code perso (6 chiffres)" inputmode="numeric" maxlength="6" autocomplete="current-password">
+  <input type="password" id="pw2" placeholder="Confirme le code" inputmode="numeric" maxlength="6" style="display:none">
+  <button id="go" style="width:100%">Déverrouiller</button>
+  <div class="err" id="er"></div>
+</div></div>
+
+<div id="app" class="wrap" hidden>
+  <h1><span>📝 Bloc Note <small id="who" style="font-size:.9rem;color:var(--mut)"></small></span> <button class="ghost" id="out">🔒 Verrouiller</button></h1>
+  <div class="tabs"><button class="on" data-v="tasks">Tâches</button><button data-v="notes">Notes</button></div>
+  <section id="v-tasks">
+    <div class="card"><div class="row">
+      <input type="text" id="nt" placeholder="Nouvelle tâche…">
+      <select id="np"><option value="0">Priorité —</option><option value="1">Basse</option><option value="2">Moyenne</option><option value="3">Haute</option></select>
+      <input type="date" id="nd"><button id="add">Ajouter</button>
+    </div></div>
+    <div class="row" style="margin-bottom:10px;justify-content:space-between">
+      <span id="cnt" style="color:var(--mut)"></span>
+      <span class="row"><button class="ghost" id="sortp">Trier par priorité</button><button class="ghost" id="clr">Supprimer terminées</button></span>
+    </div>
+    <ul id="list"></ul>
+  </section>
+  <section id="v-notes" hidden><div class="card"><textarea id="notes" placeholder="Écris tes notes ici…"></textarea><small style="color:var(--mut)">Enregistré automatiquement</small></div></section>
+</div>
+
+<script>
+const K='blocnote_',$=id=>document.getElementById(id);
+const hash=async s=>[...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode('bn::'+s)))].map(b=>b.toString(16).padStart(2,'0')).join('');
+const get=(k,d)=>{try{return JSON.parse(localStorage.getItem(K+k))??d}catch{return d}};
+const set=(k,v)=>{try{localStorage.setItem(K+k,JSON.stringify(v))}catch{}};
+let tasks=get('tasks',[]);const first=!get('pw');
+if(first){$('lt').textContent='🔐 Crée ton mot de passe';$('ld').textContent='Ton prénom + un code perso à 6 chiffres';$('pw2').style.display='';$('go').textContent='Créer'}
+async function unlock(){
+  const n=$('nm').value.trim().toLowerCase(),p=$('pw').value;if(!n)return $('er').textContent='Indique ton prénom';
+  if(!/^\d{6}$/.test(p))return $('er').textContent='Le code doit faire 6 chiffres';
+  if(!get('pw')){if(p!==$('pw2').value)return $('er').textContent='Les codes ne correspondent pas';set('pw',await hash(n+':'+p));set('name',$('nm').value.trim())}
+  else if(await hash(n+':'+p)!==get('pw')){$('er').textContent='Prénom ou code incorrect';$('pw').value='';return}
+  sessionStorage.setItem(K+'ok','1');show();
+}
+function show(){$('lock').style.display='none';$('app').hidden=false;$('who').textContent=get('name','');render();$('notes').value=get('notes','')}
+$('go').onclick=unlock;$('nm').onkeydown=$('pw').onkeydown=$('pw2').onkeydown=e=>e.key==='Enter'&&unlock();
+$('out').onclick=()=>{sessionStorage.removeItem(K+'ok');location.reload()};
+if(sessionStorage.getItem(K+'ok'))show();
+
+document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tabs button').forEach(x=>x.classList.toggle('on',x===b));$('v-tasks').hidden=b.dataset.v!=='tasks';$('v-notes').hidden=b.dataset.v!=='notes'});
+$('notes').oninput=e=>set('notes',e.target.value);
+
+const save=()=>{set('tasks',tasks);render()};
+function add(){const t=$('nt').value.trim();if(!t)return;tasks.push({id:Date.now(),t,p:+$('np').value,d:$('nd').value,done:false});$('nt').value='';$('nd').value='';save()}
+$('add').onclick=add;$('nt').onkeydown=e=>e.key==='Enter'&&add();
+$('sortp').onclick=()=>{tasks.sort((a,b)=>a.done-b.done||b.p-a.p);save()};
+$('clr').onclick=()=>{if(confirm('Supprimer les tâches terminées ?')){tasks=tasks.filter(x=>!x.done);save()}};
+const esc=s=>s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const P=['','Basse','Moyenne','Haute'];
+function render(){
+  const L=$('list');L.innerHTML='';
+  $('cnt').textContent=`${tasks.filter(x=>!x.done).length} à faire · ${tasks.filter(x=>x.done).length} terminée(s)`;
+  tasks.forEach((x,i)=>{
+    const li=document.createElement('li');li.className=(x.done?'done ':'')+'p'+x.p;li.draggable=true;li.dataset.i=i;
+    const meta=[P[x.p],x.d&&new Date(x.d+'T00:00').toLocaleDateString('fr-FR')].filter(Boolean).join(' · ');
+    li.innerHTML=`<span class="h">⋮⋮</span><input type="checkbox" ${x.done?'checked':''}><span class="t">${i+1}. ${esc(x.t)}${meta?`<small>${meta}</small>`:''}</span>
+    <button class="ic" data-a="up">▲</button><button class="ic" data-a="dn">▼</button><button class="ic" data-a="ed">✏️</button><button class="ic" data-a="rm">🗑️</button>`;
+    li.querySelector('input').onchange=e=>{x.done=e.target.checked;save()};
+    li.querySelectorAll('button').forEach(b=>b.onclick=()=>{const a=b.dataset.a;
+      if(a==='up'&&i>0)[tasks[i-1],tasks[i]]=[tasks[i],tasks[i-1]];
+      if(a==='dn'&&i<tasks.length-1)[tasks[i+1],tasks[i]]=[tasks[i],tasks[i+1]];
+      if(a==='ed'){const n=prompt('Modifier la tâche',x.t);if(n&&n.trim())x.t=n.trim()}
+      if(a==='rm'&&!confirm('Supprimer cette tâche ?'))return;if(a==='rm')tasks.splice(i,1);save()});
+    li.ondragstart=()=>li.classList.add('drag');li.ondragend=()=>li.classList.remove('drag');
+    li.ondragover=e=>e.preventDefault();
+    li.ondrop=e=>{e.preventDefault();const from=+L.querySelector('.drag')?.dataset.i;if(isNaN(from)||from===i)return;const [m]=tasks.splice(from,1);tasks.splice(i,0,m);save()};
+    L.appendChild(li)});
+}
+</script>
+</body>
+</html>
