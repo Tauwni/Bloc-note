@@ -55,6 +55,7 @@ const IC = {
   book: 'M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20', arrow: 'M5 12h14|m12 5 7 7-7 7',
   undo: 'M9 14 4 9l5-5|M4 9h10.5a5.5 5.5 0 0 1 0 11H11', layers: 'm12 2 10 5-10 5L2 7z|m2 17 10 5 10-5|m2 12 10 5 10-5',
   filter: 'M22 3H2l8 9.5V19l4 2v-8.5L22 3z',
+  game: 'M6 11h4|M8 9v4|M15 12h.01|M18 10h.01|M17.3 5H6.7a4 4 0 0 0-4 3.6l-.9 7.2A2.5 2.5 0 0 0 4.3 18.6c.9 0 1.7-.5 2.1-1.3l.9-1.8a2 2 0 0 1 1.8-1h5.8a2 2 0 0 1 1.8 1l.9 1.8c.4.8 1.2 1.3 2.1 1.3a2.5 2.5 0 0 0 2.5-2.8l-.9-7.2a4 4 0 0 0-4-3.6z',
   hash: 'M4 9h16|M4 15h16|M10 3 8 21|M16 3l-2 18', subtask: 'M4 4v10a2 2 0 0 0 2 2h8|m10 12 4 4-4 4|M18 8h3|M18 16h3'
 };
 function ic(n, cls = '') {
@@ -801,6 +802,7 @@ const ACT = {
     $$('.done-sec').forEach(x => { x.classList.toggle('open', open); $('.done-head', x).setAttribute('aria-expanded', open); });
     pref('doneOpen', open ? '1' : '0');
   },
+  playGame: el => window.BNGames && BNGames.open(el.dataset.id),
   editTask: el => taskSheet(el.dataset.id),
   newTask: () => taskSheet(null),
   quickAdd: () => quickAdd(),
@@ -928,7 +930,7 @@ function renderSide() {
 }
 function render() {
   applyTheme();
-  const V = { today: vToday, tasks: vTasks, planning: vPlanning, notes: vNotes, settings: vSettings }[ui.view] || vToday;
+  const V = { today: vToday, tasks: vTasks, planning: vPlanning, notes: vNotes, settings: vSettings, games: () => (window.BNGames ? BNGames.view() : '') }[ui.view] || vToday;
   const main = $('#main');
   const sy = $('#ttScroll')?.scrollTop;
   main.innerHTML = V();
@@ -938,7 +940,7 @@ function render() {
   if (sameView) $$('.stagger', main).forEach(e => e.classList.toggle('stagger', false));
   if (ui.flash) { const f = ui.flash; setTimeout(() => { if (ui.flash === f) ui.flash = null; }, 50); }
   renderSide();
-  $('.fab').hidden = ui.view === 'settings';
+  $('.fab').hidden = ui.view === 'settings' || ui.view === 'games';
   if (ui.view === 'tasks') { renderTaskList(sameView && !ui.restagger); ui.restagger = false; }
   if (ui.view === 'notes') renderNotes();
   if (ui.view === 'planning') {
@@ -951,3 +953,6 @@ render();
 // Rafraîchit l'heure (ligne rouge, cours en cours) chaque minute
 let lastDay = todayK();
 setInterval(() => { if (!sheetOpen() && !document.activeElement?.matches('input,textarea,select')) { if (todayK() !== lastDay) { lastDay = todayK(); ui.week = 0; } if (ui.view === 'today' || ui.view === 'planning') render(); } }, 60000);
+
+window.BN_onGameClose = () => { if (ui.view === 'games') render(); };
+if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});

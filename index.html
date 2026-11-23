@@ -13,7 +13,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Bloc Note">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<link rel="stylesheet" href="style.css?v=9">
+<link rel="stylesheet" href="style.css?v=10">
 </head>
 <body>
 <div class="shell">
@@ -24,6 +24,7 @@
       <button data-act="nav" data-nav="tasks"><span data-ic="listc"></span>Tâches<em id="cOpen"></em></button>
       <button data-act="nav" data-nav="planning"><span data-ic="calendar"></span>Emploi du temps</button>
       <button data-act="nav" data-nav="notes"><span data-ic="note"></span>Notes</button>
+      <button data-act="nav" data-nav="games"><span data-ic="game"></span>Jeux</button>
       <button data-act="nav" data-nav="settings"><span data-ic="settings"></span>Réglages</button>
     </nav>
     <div class="side-title">Listes <button class="mini" data-act="newList" aria-label="Nouvelle liste"><span data-ic="plus"></span></button></div>
@@ -37,6 +38,7 @@
   <button data-act="nav" data-nav="tasks"><span data-ic="listc"></span><small>Tâches</small></button>
   <button data-act="nav" data-nav="planning"><span data-ic="calendar"></span><small>Planning</small></button>
   <button data-act="nav" data-nav="notes"><span data-ic="note"></span><small>Notes</small></button>
+  <button data-act="nav" data-nav="games"><span data-ic="game"></span><small>Jeux</small></button>
   <button data-act="nav" data-nav="settings"><span data-ic="settings"></span><small>Réglages</small></button>
 </nav>
 
@@ -44,6 +46,7 @@
 <div id="sheetRoot"></div>
 <div id="toasts" aria-live="polite"></div>
 <input type="file" id="importFile" accept="application/json,.json" hidden>
-<script src="app.js?v=9"></script>
+<script src="app.js?v=10"></script>
+<script src="games.js?v=10"></script>
 </body>
 </html>
