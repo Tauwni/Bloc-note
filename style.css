@@ -179,7 +179,7 @@ h2.sec .link{margin-left:auto}
 .tt-head .today .dn{color:var(--accent)}
 .tt-head .dt{display:flex;flex-direction:column;gap:3px;margin-top:6px}
 .tt-head .dt button{border:0;background:var(--soft);color:var(--accent);font-size:11.5px;font-weight:600;border-radius:6px;padding:2px 6px;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.tt-scroll{max-height:calc(100vh - 250px);overflow:auto}
+.tt-scroll{max-height:calc(100vh - 230px);overflow:auto;scrollbar-gutter:stable;overscroll-behavior:contain}
 .tt-hours{position:relative}
 .tt-hours span{position:absolute;right:8px;font-size:11.5px;color:var(--muted);font-weight:600;transform:translateY(-50%)}
 .tt-col{position:relative;border-left:1px solid var(--line);background-image:linear-gradient(var(--line) 1px,transparent 1px);background-size:100% var(--hh);cursor:copy}
@@ -418,3 +418,20 @@ body,.side,.card,.tlist,.task,.srows,.tt,.search{transition:background-color .3s
 .listfoot .link{display:inline-flex;align-items:center;gap:6px;color:var(--muted)}
 .listfoot .link:hover{color:var(--red);background:color-mix(in srgb,var(--red) 8%,transparent)}
 .listfoot .ic{width:15px;height:15px}
+
+/* Grille : en-tête et colonnes dans la même zone pour un alignement exact */
+.tt-head>div,.tt-col{box-sizing:border-box}
+.tt-head .tt-corner{background:var(--surface)}
+.tt-grid{position:relative}
+/* Jours fériés */
+.holtag{margin:4px auto 0;font-size:10.5px;font-weight:700;color:var(--red);background:color-mix(in srgb,var(--red) 11%,transparent);border-radius:6px;padding:1px 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;width:max-content}
+.tt-head .hol .dn{color:var(--red)}
+.tt-col.hol{background-color:color-mix(in srgb,var(--red) 4%,transparent);background-image:linear-gradient(var(--line) 1px,transparent 1px),repeating-linear-gradient(135deg,transparent 0 10px,color-mix(in srgb,var(--red) 6%,transparent) 10px 11px);background-size:100% var(--hh),auto}
+.daystrip .hol small{color:var(--red)}
+.daystrip .hol:not(.on) b{color:var(--red)}
+.holbanner{display:flex;gap:12px;align-items:center;padding:12px 14px;margin-bottom:12px;border-radius:16px;background:color-mix(in srgb,var(--red) 9%,var(--surface));border:1px solid color-mix(in srgb,var(--red) 25%,transparent)}
+.holbanner .ic{color:var(--red)}
+.holbanner b{display:block}
+.holbanner small{color:var(--muted)}
+.hint{color:var(--accent);font-weight:600;font-size:13.5px;min-height:1.2em}
+#sDateF input{margin-top:2px}

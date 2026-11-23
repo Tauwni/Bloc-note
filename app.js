@@ -70,7 +70,7 @@ const paintIcons = (root = document) => $$('[data-ic]', root).forEach(el => { if
 
 /* ---------- Données ---------- */
 const KEY = 'blocnote-v2';
-const DEF_SET = { name: '', theme: 'auto', accent: '#5b5bd6', from: 7, to: 21, weekend: true };
+const DEF_SET = { name: '', theme: 'auto', accent: '#5b5bd6', from: 7, to: 21, weekend: true, holidayClasses: false };
 function seed() {
   const s = {
     v: 2,
@@ -125,8 +125,30 @@ function dueInfo(t) {
   label = label.charAt(0).toUpperCase() + label.slice(1);
   return { label: label + (t.time ? ' · ' + t.time : ''), late: !t.done && diff < 0, today: diff === 0 };
 }
+function easter(y) {
+  const a = y % 19, b = Math.floor(y / 100), c = y % 100, d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25), g = Math.floor((b - f + 1) / 3);
+  const h = (19 * a + b - d - g + 15) % 30, i = Math.floor(c / 4), kk = c % 4, l = (32 + 2 * e + 2 * i - h - kk) % 7, m = Math.floor((a + 11 * h + 22 * l) / 451);
+  const month = Math.floor((h + l - 7 * m + 114) / 31), day = ((h + l - 7 * m + 114) % 31) + 1;
+  return `${y}-${pad(month)}-${pad(day)}`;
+}
+const HOL_CACHE = {};
+function holidaysOf(y) {
+  if (HOL_CACHE[y]) return HOL_CACHE[y];
+  const e = easter(y), h = {
+    [`${y}-01-01`]: 'Jour de l’an', [addDays(e, 1)]: 'Lundi de Pâques', [`${y}-05-01`]: 'Fête du Travail', [`${y}-05-08`]: 'Victoire 1945',
+    [addDays(e, 39)]: 'Ascension', [addDays(e, 50)]: 'Lundi de Pentecôte', [`${y}-07-14`]: 'Fête nationale', [`${y}-08-15`]: 'Assomption',
+    [`${y}-11-01`]: 'Toussaint', [`${y}-11-11`]: 'Armistice 1918', [`${y}-12-25`]: 'Noël'
+  };
+  return (HOL_CACHE[y] = h);
+}
+const holiday = k => holidaysOf(+k.slice(0, 4))[k] || '';
+function nextHoliday(from) {
+  const y = +from.slice(0, 4);
+  return [...Object.entries(holidaysOf(y)), ...Object.entries(holidaysOf(y + 1))].sort((a, b) => a[0].localeCompare(b[0])).find(([d]) => d >= from);
+}
 function slotsFor(k) {
-  return S.slots.filter(s => s.once ? s.once === k : s.day === wd(k)).sort((a, b) => toMin(a.start) - toMin(b.start));
+  const hol = holiday(k) && !S.set.holidayClasses;
+  return S.slots.filter(s => s.once ? s.once === k : (!hol && s.day === wd(k))).sort((a, b) => toMin(a.start) - toMin(b.start));
 }
 function filtered(statusOverride) {
   const f = { ...ui.f, ...(statusOverride ? { status: statusOverride } : {}) }, k = todayK(), wk = addDays(k, 7);
@@ -219,7 +241,7 @@ function vToday() {
   const nextSlot = slots.find(s => toMin(s.end) > nm);
 
   return `<div class="fadein stagger">
-  <header class="head"><div><h1>${hello}</h1><p>${fmt(k, { weekday: 'long', day: 'numeric', month: 'long' })}${nextSlot ? ` · ${toMin(nextSlot.start) <= nm ? 'en ce moment' : 'prochain cours à ' + esc(nextSlot.start)} : ${esc(nextSlot.title)}` : ''}</p></div></header>
+  <header class="head"><div><h1>${hello}</h1><p>${fmt(k, { weekday: 'long', day: 'numeric', month: 'long' })}${holiday(k) ? ' · férié (' + esc(holiday(k)) + ')' : ''}${nextSlot ? ` · ${toMin(nextSlot.start) <= nm ? 'en ce moment' : 'prochain cours à ' + esc(nextSlot.start)} : ${esc(nextSlot.title)}` : ''}</p></div></header>
   <div class="stats">
     <button class="card stat" data-act="goFilter" data-when="today"><div class="top"><span class="bub" style="--c:var(--accent)">${ic('sun')}</span></div><b>${tod.length}</b><span>Pour aujourd’hui</span></button>
     <button class="card stat" data-act="goFilter" data-when="late"><div class="top"><span class="bub" style="--c:var(--red)">${ic('alert')}</span></div><b>${late.length}</b><span>En retard</span></button>
@@ -418,19 +440,19 @@ function vPlanning() {
   const tasksOn = d => S.tasks.filter(t => !t.done && t.due === d);
   const pos = (a, b) => { const t = Math.max(0, (toMin(a) - from * 60) / 60 * hh); const h = Math.max(24, (toMin(b) - toMin(a)) / 60 * hh - 3); return `top:${t + 1}px;height:${h}px`; };
 
-  const grid = `<div class="tt only-wide" style="--n:${n};--hh:${hh}px">
-    <div class="tt-head"><div></div>${days.map(d => {
-      const ts = tasksOn(d).filter(t => !t.time);
-      return `<div class="${d === k ? 'today' : ''}"><div class="dn">${DAYS[wd(d)].slice(0, 3)}</div><div class="dd">${D(d).getDate()}</div>
+  const grid = `<div class="tt only-wide" style="--n:${n};--hh:${hh}px"><div class="tt-scroll" id="ttScroll">
+    <div class="tt-head"><div class="tt-corner"></div>${days.map(d => {
+      const ts = tasksOn(d).filter(t => !t.time), hol = holiday(d);
+      return `<div class="${d === k ? 'today' : ''} ${hol ? 'hol' : ''}"><div class="dn">${DAYS[wd(d)].slice(0, 3)}</div><div class="dd">${D(d).getDate()}</div>${hol ? `<div class="holtag" title="Jour férié">${esc(hol)}</div>` : ''}
         ${ts.length ? `<div class="dt">${ts.slice(0, 2).map(t => `<button data-act="editTask" data-id="${t.id}" title="${esc(t.title)}">${esc(t.title)}</button>`).join('')}${ts.length > 2 ? `<button data-act="goDay" data-k="${d}">+${ts.length - 2} autre${ts.length > 3 ? 's' : ''}</button>` : ''}</div>` : ''}</div>`;
     }).join('')}</div>
-    <div class="tt-scroll" id="ttScroll"><div class="tt-grid" style="height:${H}px">
+    <div class="tt-grid" style="height:${H}px">
       <div class="tt-hours">${[...Array(to - from)].map((_, i) => i ? `<span style="top:${i * hh}px">${pad(from + i)}:00</span>` : '').join('')}</div>
       ${days.map(d => {
         const items = slotsFor(d).map(s => `<button class="slot" style="--c:${s.color};${pos(s.start, s.end)}" data-act="editSlot" data-id="${s.id}"><b>${esc(s.title)}</b><small>${esc(s.start)} – ${esc(s.end)}</small>${s.place ? `<small>${esc(s.place)}</small>` : ''}</button>`).join('');
         const tt = tasksOn(d).filter(t => t.time).map(t => { const e = pad(Math.min(23, Math.floor(toMin(t.time) / 60) + 1)) + ':' + t.time.slice(3); return `<button class="slot task-slot" style="${pos(t.time, e).replace(/height:[\d.]+px/, 'height:30px')}" data-act="editTask" data-id="${t.id}"><b>${ic('check')} ${esc(t.title)}</b></button>`; }).join('');
         const now = d === k && nowMin() >= from * 60 && nowMin() <= to * 60 ? `<div class="now" style="top:${(nowMin() - from * 60) / 60 * hh}px"></div>` : '';
-        return `<div class="tt-col ${d === k ? 'today' : ''}" data-col="${d}" data-from="${from}">${items}${tt}${now}</div>`;
+        return `<div class="tt-col ${d === k ? 'today' : ''} ${holiday(d) ? 'hol' : ''}" data-col="${d}" data-from="${from}">${items}${tt}${now}</div>`;
       }).join('')}
     </div></div></div>`;
 
@@ -441,14 +463,15 @@ function vPlanning() {
   ].sort((a, b) => a.m - b.m);
   const untimed = tasksOn(sel).filter(t => !t.time);
   const narrow = `<div class="only-narrow">
-    <div class="daystrip" style="--n:${n}">${days.map(d => `<button class="${d === sel ? 'on' : ''} ${d === k ? 'today' : ''}" data-act="pickDay" data-k="${d}"><small>${DAYS[wd(d)].slice(0, 3)}</small><b>${D(d).getDate()}</b>${slotsFor(d).length || tasksOn(d).length ? '<i></i>' : ''}</button>`).join('')}</div>
+    <div class="daystrip" style="--n:${n}">${days.map(d => `<button class="${d === sel ? 'on' : ''} ${d === k ? 'today' : ''} ${holiday(d) ? 'hol' : ''}" data-act="pickDay" data-k="${d}"><small>${DAYS[wd(d)].slice(0, 3)}</small><b>${D(d).getDate()}</b>${slotsFor(d).length || tasksOn(d).length ? '<i></i>' : ''}</button>`).join('')}</div>
     <h2 class="sec">${fmt(sel, { weekday: 'long', day: 'numeric', month: 'long' }).replace(/^./, c => c.toUpperCase())}<button class="link" data-act="newSlot" data-k="${sel}">${ic('plus')}</button></h2>
+    ${holiday(sel) ? `<div class="holbanner">${ic('spark')}<div><b>Jour férié · ${esc(holiday(sel))}</b><small>${S.set.holidayClasses ? 'Tes cours habituels restent affichés.' : 'Tes cours habituels ne sont pas affichés ce jour-là.'}</small></div></div>` : ''}
     ${its.length ? `<div class="agenda">${its.map(x => x.h).join('')}</div>` : empty('calendar', 'Journée libre', 'Aucun cours ni tâche à heure fixe.', `<button class="btn sm" data-act="newSlot" data-k="${sel}" style="margin-top:8px">${ic('plus')} Ajouter un créneau</button>`)}
     ${untimed.length ? `<h2 class="sec" style="margin-top:22px">${ic('listc')} Tâches du jour <small>${untimed.length}</small></h2><div class="tlist">${untimed.map(t => taskRow(t)).join('')}</div>` : ''}
   </div>`;
 
   return `<div class="fadein stagger">
-  <header class="head"><div><h1>Emploi du temps</h1><p>Semaine du ${range}</p></div>
+  <header class="head"><div><h1>Emploi du temps</h1><p>Semaine du ${range}${(() => { const nh = nextHoliday(first); return nh ? ` · ${days.includes(nh[0]) ? 'férié cette semaine' : 'prochain férié'} : ${esc(nh[1])}, ${fmt(nh[0], { weekday: 'long', day: 'numeric', month: 'long' })}` : ''; })()}</p></div>
     <div class="actions">
       <div class="weeknav"><button class="btn icon" data-act="week" data-v="-1" aria-label="Semaine précédente">${ic('left')}</button><button class="btn" data-act="week" data-v="0">Aujourd’hui</button><button class="btn icon" data-act="week" data-v="1" aria-label="Semaine suivante">${ic('right')}</button></div>
       <button class="btn primary hide-narrow" data-act="newSlot">${ic('plus')} Créneau</button>
@@ -491,6 +514,7 @@ function vSettings() {
   </div></div>
   <div class="sgroup"><h3>Emploi du temps</h3><div class="srows">
     <div class="srow"><div class="lbl"><span class="sic" style="--c:#ff9500">${ic('calendar')}</span><div>Afficher le week-end<small>Samedi et dimanche</small></div></div><label class="switch"><input type="checkbox" id="sWe" ${st.weekend ? 'checked' : ''}><span></span></label></div>
+    <div class="srow"><div class="lbl"><span class="sic" style="--c:#ff3b30">${ic('spark')}</span><div>Cours les jours fériés<small>Afficher tes cours habituels même les jours fériés</small></div></div><label class="switch"><input type="checkbox" id="sHol" ${st.holidayClasses ? 'checked' : ''}><span></span></label></div>
     <div class="srow"><div class="lbl"><span class="sic" style="--c:#32ade6">${ic('clock')}</span><div>Heures affichées<small>Début et fin de journée</small></div></div>
       <div style="display:flex;gap:8px;align-items:center"><input type="number" id="sFrom" min="0" max="12" value="${st.from}" style="width:76px"> à <input type="number" id="sTo" min="13" max="24" value="${st.to}" style="width:76px"> h</div></div>
   </div></div>
@@ -600,15 +624,19 @@ function removeTask(id) {
 function slotSheet(id, preset = {}) {
   const src = id ? S.slots.find(x => x.id === id) : null;
   if (id && !src) return;
-  const s = src ? { ...src } : { title: '', day: wd(ui.day || todayK()), start: '08:00', end: '10:00', place: '', color: COLORS[1], note: '', once: '', ...preset };
+  const base = preset.date || ui.day || todayK();
+  const s = src ? { ...src } : { title: '', day: wd(base), start: '08:00', end: '10:00', place: '', color: COLORS[1], note: '', once: '', ...preset };
+  delete s.date;
+  let date = s.once || preset.date || addDays(mondayOf(base), s.day);
   const rep = !s.once;
   openSheet(`
     <div class="sh-head"><button class="btn ghost" data-close>Annuler</button><h3>${id ? 'Modifier le créneau' : 'Nouveau créneau'}</h3><button class="btn primary sm" id="sSave">${id ? 'Enregistrer' : 'Ajouter'}</button></div>
     <div class="sh-body">
       <input class="big" id="sT" placeholder="Nom du cours ou de l’activité" value="${esc(s.title)}" autocomplete="off">
       <div class="field"><label>${ic('repeat')} Répétition</label><div class="seg" id="sR"><button type="button" data-r="1" class="${rep ? 'on' : ''}">Chaque semaine</button><button type="button" data-r="0" class="${rep ? '' : 'on'}">Une seule fois</button></div></div>
-      <div class="field" id="sDayF" ${rep ? '' : 'hidden'}><label>${ic('calendar')} Jour</label><div class="daychips" id="sDay">${DAYS.map((d, i) => `<button type="button" class="chip ${s.day === i ? 'on' : ''}" data-day="${i}">${d}</button>`).join('')}</div></div>
-      <div class="field" id="sDateF" ${rep ? 'hidden' : ''}><label>${ic('calendar')} Date</label><input type="date" id="sDate" value="${esc(s.once || ui.day || todayK())}"></div>
+      <div class="field"><label>${ic('calendar')} Jour</label><div class="daychips" id="sDay">${DAYS.map((d, i) => `<button type="button" class="chip ${s.day === i ? 'on' : ''}" data-day="${i}">${d}</button>`).join('')}</div>
+        <div id="sDateF" ${rep ? 'hidden' : ''}><input type="date" id="sDate" value="${esc(date)}" aria-label="Date"></div>
+        <small class="hint" id="sHint"></small></div>
       <div class="grid2"><div class="field"><label>${ic('clock')} Début</label><input type="time" id="sA" value="${esc(s.start)}"></div><div class="field"><label>${ic('clock')} Fin</label><input type="time" id="sB" value="${esc(s.end)}"></div></div>
       <div class="field"><label>${ic('mappin')} Lieu / salle</label><input id="sP" placeholder="ex : Salle B204" value="${esc(s.place)}" autocomplete="off"></div>
       <div class="field"><label>${ic('palette')} Couleur</label><div class="swatches" id="sC">${COLORS.map(c => `<button type="button" class="sw ${s.color === c ? 'on' : ''}" style="--c:${c}" data-c="${c}" aria-label="Couleur"></button>`).join('')}</div></div>
@@ -616,8 +644,21 @@ function slotSheet(id, preset = {}) {
       ${id ? `<button class="btn danger wide" id="sDel">${ic('trash')} Supprimer le créneau</button>` : ''}
     </div>`, sh => {
     let repeat = rep;
-    $('#sR', sh).addEventListener('click', e => { const b = e.target.closest('[data-r]'); if (!b) return; repeat = b.dataset.r === '1'; $$('#sR button', sh).forEach(x => x.classList.toggle('on', x === b)); $('#sDayF', sh).hidden = !repeat; $('#sDateF', sh).hidden = repeat; });
-    $('#sDay', sh).addEventListener('click', e => { const b = e.target.closest('[data-day]'); if (!b) return; s.day = +b.dataset.day; $$('#sDay .chip', sh).forEach(x => x.classList.toggle('on', x === b)); });
+    const hint = () => {
+      const hol = !repeat && holiday(date);
+      $('#sHint', sh).textContent = repeat ? `Tous les ${DAYS[s.day].toLowerCase()}s` : fmt(date, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).replace(/^./, c => c.toUpperCase()) + (hol ? ` · jour férié (${hol})` : '');
+      $$('#sDay .chip', sh).forEach(x => x.classList.toggle('on', +x.dataset.day === s.day));
+    };
+    hint();
+    $('#sR', sh).addEventListener('click', e => { const b = e.target.closest('[data-r]'); if (!b) return; repeat = b.dataset.r === '1'; $$('#sR button', sh).forEach(x => x.classList.toggle('on', x === b)); $('#sDateF', sh).hidden = repeat; hint(); });
+    $('#sDay', sh).addEventListener('click', e => {
+      const b = e.target.closest('[data-day]'); if (!b) return;
+      s.day = +b.dataset.day;
+      date = addDays(mondayOf(date), s.day);
+      $('#sDate', sh).value = date;
+      hint();
+    });
+    $('#sDate', sh).addEventListener('change', e => { if (!e.target.value) return; date = e.target.value; s.day = wd(date); hint(); });
     $('#sC', sh).addEventListener('click', e => { const b = e.target.closest('[data-c]'); if (!b) return; s.color = b.dataset.c; $$('#sC .sw', sh).forEach(x => x.classList.toggle('on', x === b)); });
     $('#sA', sh).addEventListener('change', () => { const a = toMin($('#sA', sh).value), b = toMin($('#sB', sh).value); if (b <= a) { const e = Math.min(a + 60, 23 * 60 + 59); $('#sB', sh).value = pad(Math.floor(e / 60)) + ':' + pad(e % 60); } });
     $('#sSave', sh).addEventListener('click', () => {
@@ -625,9 +666,9 @@ function slotSheet(id, preset = {}) {
       if (!title) return shake($('#sT', sh));
       const a = $('#sA', sh).value, b = $('#sB', sh).value;
       if (!a || !b || toMin(b) <= toMin(a)) return shake($('#sB', sh));
-      const date = $('#sDate', sh).value;
       if (!repeat && !date) return shake($('#sDate', sh));
       const data = { title, start: a, end: b, place: $('#sP', sh).value.trim(), color: s.color, note: $('#sN', sh).value.trim(), once: repeat ? '' : date, day: repeat ? s.day : wd(date) };
+      if (!src) { const wk = Math.round((D(mondayOf(repeat ? addDays(mondayOf(base), s.day) : date)) - D(mondayOf(todayK()))) / (7 * 864e5)); ui.day = repeat ? addDays(mondayOf(base), s.day) : date; if (!repeat) ui.week = wk; }
       if (src) Object.assign(src, data); else S.slots.push({ id: uid(), ...data });
       save(); closeSheet(true); render(); toast(src ? 'Créneau modifié' : 'Créneau ajouté');
     });
@@ -751,11 +792,11 @@ const ACT = {
   week: el => { const v = +el.dataset.v; ui.week = v === 0 ? 0 : ui.week + v; ui.day = v === 0 ? todayK() : null; render(); },
   pickDay: el => { ui.day = el.dataset.k; render(); },
   goDay: el => { ui.f = { ...ui.f, when: 'all', q: '' }; ui.day = el.dataset.k; taskSheetList(el.dataset.k); },
-  newSlot: el => { const k = el.dataset.k; slotSheet(null, k ? { day: wd(k) } : {}); },
+  newSlot: el => { const k = el.dataset.k || ui.day; slotSheet(null, k ? { day: wd(k), date: k } : {}); },
   editSlot: el => slotSheet(el.dataset.id),
   newNote: () => noteSheet(null),
   editNote: el => noteSheet(el.dataset.id),
-  fab: () => ({ planning: () => slotSheet(null), notes: () => noteSheet(null) }[ui.view] || (() => taskSheet(null, ui.view === 'today' ? { due: todayK() } : {})))(),
+  fab: () => ({ planning: () => slotSheet(null, ui.day ? { day: wd(ui.day), date: ui.day } : {}), notes: () => noteSheet(null) }[ui.view] || (() => taskSheet(null, ui.view === 'today' ? { due: todayK() } : {})))(),
   setTheme: el => { S.set.theme = el.dataset.v; save(); render(); },
   setAccent: el => { S.set.accent = el.dataset.v; save(); render(); },
   export: () => {
@@ -808,6 +849,7 @@ document.addEventListener('change', e => {
   if (t.id === 'fprio') { ui.f.prio = +t.value; renderTaskList(); }
   else if (t.id === 'fsort') { ui.f.sort = t.value; pref('sort', t.value); renderTaskList(); }
   else if (t.id === 'sWe') { S.set.weekend = t.checked; save(); }
+  else if (t.id === 'sHol') { S.set.holidayClasses = t.checked; save(); }
   else if (t.id === 'sFrom' || t.id === 'sTo') {
     const a = Math.max(0, Math.min(12, +$('#sFrom').value || 0)), b = Math.max(13, Math.min(24, +$('#sTo').value || 24));
     S.set.from = a; S.set.to = b; save();
@@ -833,7 +875,7 @@ document.addEventListener('click', e => {
   const y = e.clientY - col.getBoundingClientRect().top;
   const h = Math.floor(y / 56) + (+col.dataset.from);
   const k = col.dataset.col;
-  slotSheet(null, { day: wd(k), start: pad(h) + ':00', end: pad(Math.min(h + 1, 23)) + ':' + (h + 1 > 23 ? '59' : '00') });
+  slotSheet(null, { day: wd(k), date: k, start: pad(h) + ':00', end: pad(Math.min(h + 1, 23)) + ':' + (h + 1 > 23 ? '59' : '00') });
 });
 
 /* ---------- Rendu ---------- */
