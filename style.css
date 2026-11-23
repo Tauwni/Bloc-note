@@ -440,3 +440,6 @@ body,.side,.card,.tlist,.task,.srows,.tt,.search{transition:background-color .3s
 .dayquick{display:flex;gap:4px;flex-wrap:wrap;margin:-2px 0 2px}
 .dayquick .link{font-size:13px;padding:3px 8px}
 #sDay .chip.on{background:var(--accent);color:#fff}
+
+/* Pas de zoom au double-tap */
+html,body,button,a,input,select,textarea,label,.task,.slot,.chip{touch-action:manipulation}
