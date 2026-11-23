@@ -40,7 +40,7 @@ textarea{width:100%;min-height:200px}
 </div></div>
 
 <div id="app" class="wrap" hidden>
-  <h1><span>📝 Bloc Note <small id="who" style="font-size:.9rem;color:var(--mut)"></small></span> <button class="ghost" id="out">🔒 Verrouiller</button></h1>
+  <h1><span>📝 Bloc Note <small id="who" style="font-size:.9rem;color:var(--mut)"></small></span> <button class="ghost" id="out" hidden>🔒 Verrouiller</button></h1>
   <div class="tabs"><button class="on" data-v="tasks">Tâches</button><button data-v="notes">Notes</button></div>
   <section id="v-tasks">
     <div class="card"><div class="row">
@@ -74,7 +74,7 @@ async function unlock(){
 function show(){$('lock').style.display='none';$('app').hidden=false;$('who').textContent=get('name','');render();$('notes').value=get('notes','')}
 $('go').onclick=unlock;$('nm').onkeydown=$('pw').onkeydown=$('pw2').onkeydown=e=>{if(e.key==='Enter')unlock()};
 $('out').onclick=()=>{sessionStorage.removeItem(K+'ok');location.reload()};
-if(sessionStorage.getItem(K+'ok'))show();
+show(); // code désactivé pour l'instant
 
 document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tabs button').forEach(x=>x.classList.toggle('on',x===b));$('v-tasks').hidden=b.dataset.v!=='tasks';$('v-notes').hidden=b.dataset.v!=='notes'});
 $('notes').oninput=e=>set('notes',e.target.value);
