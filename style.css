@@ -591,3 +591,17 @@ html,body,button,a,input,select,textarea,label,.task,.slot,.chip{touch-action:ma
 .gcard{border:0;box-shadow:0 10px 30px -18px color-mix(in srgb,var(--g2) 80%,transparent),0 0 0 1px var(--line)}
 .gcard::before{height:100%;opacity:.09;background:radial-gradient(120% 70% at 0% 0%,var(--g1),transparent 60%)}
 .gtxt small{color:var(--g2)}
+
+/* Aligne 4 */
+.g-four{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;padding:10px;border-radius:22px;background:linear-gradient(160deg,#3d7cf0,#1f4fc4);box-shadow:0 24px 50px -24px #1f4fc4,inset 0 2px 0 rgba(255,255,255,.25);width:min(100%,440px,calc((100vh - 330px) * 7 / 6));aspect-ratio:7/6;box-sizing:border-box}
+.fcol{display:grid;grid-template-rows:repeat(6,1fr);gap:6px;border-radius:12px;cursor:pointer;transition:background .15s}
+.fcol:hover{background:rgba(255,255,255,.1)}
+.fcell{border-radius:50%;background:#173a8f;box-shadow:inset 0 3px 6px rgba(0,0,0,.45);position:relative;aspect-ratio:1}
+.disc{position:absolute;inset:6%;border-radius:50%}
+.disc.p1{background:radial-gradient(circle at 35% 30%,#ff8fa3,#ff4d6d 55%,#d61f4f);box-shadow:inset 0 -3px 0 rgba(0,0,0,.2)}
+.disc.p2{background:radial-gradient(circle at 35% 30%,#ffe7a3,#ffd166 55%,#e0a800);box-shadow:inset 0 -3px 0 rgba(0,0,0,.15)}
+.disc.drop{animation:discdrop calc(.12s + var(--fall) * .05s) cubic-bezier(.5,0,1,1)}
+@keyframes discdrop{from{transform:translateY(calc(var(--fall) * -118%))}}
+.disc.win{animation:winpulse .8s infinite;box-shadow:0 0 0 3px #fff,0 0 18px #fff}
+@keyframes winpulse{50%{transform:scale(.85)}}
+.gtools .dot.p1{display:inline-block;width:12px;height:12px;border-radius:50%;background:#ff4d6d;vertical-align:-1px;margin-left:4px}
