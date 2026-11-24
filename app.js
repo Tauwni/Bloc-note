@@ -509,7 +509,7 @@ function renderNotes() {
   const a = S.notes.filter(n => !q || (n.title + ' ' + n.body).toLowerCase().includes(q)).sort((x, y) => (y.pin - x.pin) || y.upd - x.upd);
   $('#ncount').textContent = `${S.notes.length} note${S.notes.length > 1 ? 's' : ''}`;
   box.innerHTML = a.length ? `<div class="ngrid">${a.map(n => `<button class="card ncard" ${n.color ? `style="--c:${n.color}"` : ''} data-act="editNote" data-id="${n.id}">
-      <h3>${n.pin ? ic('pin') : ''}<span>${esc(n.title || 'Sans titre')}</span></h3><p>${esc(n.body.slice(0, 400))}</p>
+      <h3>${n.pin ? ic('pin') : ''}<span>${esc(n.title || 'Sans titre')}</span></h3><div class="nprev">${n.html != null ? cleanHTML(n.html.slice(0, 4000)) : textToHTML(n.body.slice(0, 400))}</div>
       <small>${new Date(n.upd).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })} · ${new Date(n.upd).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</small></button>`).join('')}</div>`
     : q ? empty('search', 'Aucune note trouvée', 'Essaie un autre mot.') : empty('note', 'Aucune note', 'Garde ici tes idées, tes listes, tes infos importantes.', `<button class="btn primary sm" data-act="newNote" style="margin-top:8px">${ic('plus')} Nouvelle note</button>`);
 }
@@ -729,25 +729,184 @@ function slotSheet(id, preset = {}) {
   });
 }
 
+/* ---------- Éditeur de texte des notes ---------- */
+const RTE_FONTS = [
+  ['Système', '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'],
+  ['Serif', 'Georgia, "Times New Roman", serif'],
+  ['Arrondie', '"Arial Rounded MT Bold", "Nunito", "Trebuchet MS", sans-serif'],
+  ['Manuscrite', '"Bradley Hand", "Segoe Print", "Comic Sans MS", cursive'],
+  ['Machine', 'ui-monospace, Menlo, Consolas, monospace']
+];
+const RTE_SIZES = [['Petit', '2'], ['Normal', '3'], ['Grand', '5'], ['Très grand', '6']];
+const RTE_COLORS = ['#1c1c1e', '#8e8e93', '#ff3b30', '#ff9500', '#ffcc00', '#34c759', '#30b0a0', '#007aff', '#5b5bd6', '#af52de', '#ff2d55', '#a2845e'];
+const RTE_MARKS = ['#fff3a3', '#ffd6a5', '#ffc2d1', '#caffbf', '#bde0fe', '#e2d5ff'];
+const RTE_TAGS = new Set(['B', 'STRONG', 'I', 'EM', 'U', 'S', 'STRIKE', 'DEL', 'SPAN', 'FONT', 'BR', 'DIV', 'P', 'H1', 'H2', 'H3', 'UL', 'OL', 'LI', 'BLOCKQUOTE', 'MARK', 'SUB', 'SUP', 'HR']);
+const RTE_CSS = new Set(['color', 'background-color', 'font-family', 'font-size', 'font-weight', 'font-style', 'text-decoration', 'text-decoration-line', 'text-align']);
+/* Ne garde que la mise en forme autorisée (protège contre tout code collé) */
+function cleanHTML(html) {
+  const tpl = document.createElement('template');
+  tpl.innerHTML = String(html || '');
+  const walk = node => {
+    [...node.childNodes].forEach(ch => {
+      if (ch.nodeType === 3) return;
+      if (ch.nodeType !== 1) { ch.remove(); return; }
+      if (!RTE_TAGS.has(ch.tagName)) {
+        if (['SCRIPT', 'STYLE', 'IFRAME', 'OBJECT', 'EMBED', 'svg', 'SVG', 'IMG', 'VIDEO', 'AUDIO', 'TEMPLATE'].includes(ch.tagName)) { ch.remove(); return; }
+        walk(ch); ch.replaceWith(...ch.childNodes); return;
+      }
+      const keep = {};
+      if (ch.tagName === 'FONT') ['color', 'face', 'size'].forEach(a => { const v = ch.getAttribute(a); if (v && /^[#\w\s,"'-]{1,120}$/.test(v)) keep[a] = v; });
+      const st = [];
+      for (const prop of ch.style || []) if (RTE_CSS.has(prop)) { const v = ch.style.getPropertyValue(prop); if (!/url\(|expression|javascript/i.test(v)) st.push(`${prop}:${v}`); }
+      const cls = (ch.getAttribute('class') || '').split(/\s+/).filter(c => c === 'checklist' || c === 'done');
+      [...ch.attributes].forEach(a => ch.removeAttribute(a.name));
+      Object.entries(keep).forEach(([k, v]) => ch.setAttribute(k, v));
+      if (st.length) ch.setAttribute('style', st.join(';'));
+      if (cls.length) ch.setAttribute('class', cls.join(' '));
+      walk(ch);
+    });
+  };
+  walk(tpl.content);
+  return tpl.innerHTML;
+}
+const textToHTML = t => esc(t || '').replace(/\n/g, '<br>');
+const noteHTML = n => n.html != null ? cleanHTML(n.html) : textToHTML(n.body);
+
+function rteToolbar() {
+  const b = (cmd, label, title, extra = '') => `<button type="button" class="rb" data-cmd="${cmd}" title="${title}" aria-label="${title}" ${extra}>${label}</button>`;
+  return `<div class="rte-bar" id="rteBar">
+    <label class="rsel" title="Police"><select data-sel="fontName" aria-label="Police">${RTE_FONTS.map(([n, f]) => `<option value='${f}' style='font-family:${f}'>${n}</option>`).join('')}</select></label>
+    <label class="rsel" title="Taille"><select data-sel="fontSize" aria-label="Taille">${RTE_SIZES.map(([n, v]) => `<option value="${v}" ${v === '3' ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
+    <span class="rsep"></span>
+    ${b('bold', '<b>G</b>', 'Gras')}${b('italic', '<i>I</i>', 'Italique')}${b('underline', '<u>S</u>', 'Souligné')}${b('strikeThrough', '<s class="rabc">abc</s>', 'Barré')}
+    <span class="rsep"></span>
+    ${b('pop-color', '<span class="rcol">A<i id="rColBar"></i></span>', 'Couleur du texte')}${b('pop-mark', '<span class="rmark">ab</span>', 'Surligner')}
+    <span class="rsep"></span>
+    ${b('h2', 'T<sub>1</sub>', 'Titre')}${b('h3', 'T<sub>2</sub>', 'Sous-titre')}${b('quote', '❝', 'Citation')}
+    <span class="rsep"></span>
+    ${b('insertUnorderedList', ic('listc').replace('class="ic ', 'class="ic rli '), 'Liste à puces')}${b('insertOrderedList', '1.', 'Liste numérotée')}${b('check', '☑', 'Liste à cocher')}
+    <span class="rsep"></span>
+    ${b('justifyLeft', '⇤', 'Aligner à gauche')}${b('justifyCenter', '≡', 'Centrer')}${b('justifyRight', '⇥', 'Aligner à droite')}
+    <span class="rsep"></span>
+    ${b('undo', '↶', 'Annuler')}${b('redo', '↷', 'Rétablir')}${b('removeFormat', '<span class="rclear">T</span>', 'Effacer la mise en forme')}
+  </div>
+  <div class="rte-pop" id="rtePop" hidden></div>`;
+}
+function bindRTE(sh, ed, onChange) {
+  const bar = $('#rteBar', sh), pop = $('#rtePop', sh);
+  let range = null;
+  const inside = () => { const s = getSelection(); return s.rangeCount && ed.contains(s.anchorNode); };
+  const keep = () => { if (inside()) range = getSelection().getRangeAt(0).cloneRange(); };
+  const restore = () => { if (inside() && document.activeElement === ed) return; ed.focus({ preventScroll: true }); if (range) { const s = getSelection(); s.removeAllRanges(); s.addRange(range); } };
+  const exec = (cmd, val = null) => { restore(); try { document.execCommand('styleWithCSS', false, true); } catch (e) { /* */ } document.execCommand(cmd, false, val); keep(); onChange(); refresh(); };
+  const block = tag => {
+    restore();
+    const cur = (document.queryCommandValue('formatBlock') || '').toLowerCase();
+    document.execCommand('formatBlock', false, cur === tag ? '<div>' : `<${tag}>`);
+    keep(); onChange(); refresh();
+  };
+  const refresh = () => {
+    if (!inside()) return;
+    ['bold', 'italic', 'underline', 'strikeThrough', 'insertUnorderedList', 'insertOrderedList', 'justifyCenter', 'justifyRight'].forEach(c => {
+      let on = false; try { on = document.queryCommandState(c); } catch (e) { /* */ }
+      bar.querySelector(`[data-cmd="${c}"]`)?.classList.toggle('on', on);
+    });
+    const fb = (document.queryCommandValue('formatBlock') || '').toLowerCase();
+    bar.querySelector('[data-cmd="h2"]').classList.toggle('on', fb === 'h2');
+    bar.querySelector('[data-cmd="h3"]').classList.toggle('on', fb === 'h3');
+    bar.querySelector('[data-cmd="quote"]').classList.toggle('on', fb === 'blockquote');
+    const node = getSelection().anchorNode, el = node && (node.nodeType === 1 ? node : node.parentElement);
+    bar.querySelector('[data-cmd="check"]').classList.toggle('on', !!el?.closest('ul.checklist'));
+  };
+  const showPop = kind => {
+    if (!pop.hidden && pop.dataset.kind === kind) { pop.hidden = true; return; }
+    pop.dataset.kind = kind; pop.hidden = false;
+    const list = kind === 'color' ? RTE_COLORS : RTE_MARKS;
+    pop.innerHTML = `<span class="rpl">${kind === 'color' ? 'Couleur du texte' : 'Surligneur'}</span>${list.map(c => `<button type="button" class="sw" style="--c:${c}" data-v="${c}" aria-label="${c}"></button>`).join('')}<button type="button" class="rb rnone" data-v="">${kind === 'color' ? 'Auto' : 'Aucun'}</button>`;
+  };
+  // Les boutons ne doivent pas faire perdre la sélection
+  bar.addEventListener('pointerdown', e => { if (e.target.closest('.rb')) e.preventDefault(); });
+  pop.addEventListener('pointerdown', e => e.preventDefault());
+  bar.addEventListener('click', e => {
+    const btn = e.target.closest('[data-cmd]'); if (!btn) return;
+    const c = btn.dataset.cmd;
+    if (c === 'pop-color') return showPop('color');
+    if (c === 'pop-mark') return showPop('mark');
+    pop.hidden = true;
+    if (c === 'h2' || c === 'h3') return block(c);
+    if (c === 'quote') return block('blockquote');
+    if (c === 'removeFormat') { exec('removeFormat'); restore(); document.execCommand('formatBlock', false, '<div>'); onChange(); return refresh(); }
+    if (c === 'check') {
+      restore();
+      const node = getSelection().anchorNode, el = node && (node.nodeType === 1 ? node : node.parentElement);
+      const ul = el?.closest('ul');
+      if (ul && ul.classList.contains('checklist')) { ul.classList.remove('checklist'); document.execCommand('insertUnorderedList'); }
+      else { if (!ul) document.execCommand('insertUnorderedList'); const n2 = getSelection().anchorNode; const u2 = (n2.nodeType === 1 ? n2 : n2.parentElement).closest('ul'); if (u2) u2.classList.add('checklist'); }
+      keep(); onChange(); refresh(); return;
+    }
+    exec(c);
+  });
+  pop.addEventListener('click', e => {
+    const b = e.target.closest('[data-v]'); if (!b) return;
+    const v = b.dataset.v;
+    if (pop.dataset.kind === 'color') { exec('foreColor', v || getComputedStyle(ed).color); if (v) $('#rColBar', sh).style.background = v; }
+    else { restore(); try { document.execCommand('styleWithCSS', false, true); } catch (x) { /* */ } if (!document.execCommand('hiliteColor', false, v || 'transparent')) document.execCommand('backColor', false, v || 'transparent'); keep(); onChange(); }
+    pop.hidden = true;
+  });
+  bar.querySelectorAll('select').forEach(s => {
+    s.addEventListener('pointerdown', keep);
+    s.addEventListener('change', () => { exec(s.dataset.sel, s.value); if (s.dataset.sel === 'fontName') s.style.fontFamily = s.value; });
+  });
+  // Cases à cocher : toucher la case coche la ligne
+  ed.addEventListener('click', e => {
+    const li = e.target.closest('ul.checklist > li'); if (!li) return;
+    const r = li.getBoundingClientRect();
+    if (e.clientX - r.left < 30) { li.classList.toggle('done'); onChange(); }
+  });
+  // Raccourcis clavier
+  ed.addEventListener('keydown', e => {
+    if (!(e.metaKey || e.ctrlKey)) return;
+    const k = e.key.toLowerCase();
+    if (k === 'b' || k === 'g') { e.preventDefault(); exec('bold'); }
+    else if (k === 'i') { e.preventDefault(); exec('italic'); }
+    else if (k === 'u') { e.preventDefault(); exec('underline'); }
+  });
+  // Coller : texte propre, sans les styles des autres sites
+  ed.addEventListener('paste', e => {
+    const html = e.clipboardData?.getData('text/html'), txt = e.clipboardData?.getData('text/plain');
+    if (!html && !txt) return;
+    e.preventDefault();
+    document.execCommand('insertHTML', false, html ? cleanHTML(html) : textToHTML(txt));
+    onChange();
+  });
+  document.addEventListener('selectionchange', () => { if (inside()) { keep(); refresh(); } });
+  ed.addEventListener('input', onChange);
+}
+
 function noteSheet(id) {
   let n = id ? S.notes.find(x => x.id === id) : null;
   if (id && !n) return;
   const draft = n ? { ...n } : { title: '', body: '', color: '', pin: false };
   openSheet(`
     <div class="sh-head"><button class="btn ghost" id="nPin">${ic('pin')} ${draft.pin ? 'Désépingler' : 'Épingler'}</button><h3>${id ? 'Note' : 'Nouvelle note'}</h3><button class="btn primary sm" data-close>OK</button></div>
-    <div class="sh-body">
+    ${rteToolbar()}
+    <div class="sh-body note-body">
       <input class="big" id="nT" placeholder="Titre" value="${esc(draft.title)}" autocomplete="off">
-      <textarea class="huge" id="nB" placeholder="Écris ici…">${esc(draft.body)}</textarea>
+      <div class="rte" id="nB" contenteditable="true" spellcheck="true" data-ph="Écris ici…">${noteHTML(draft)}</div>
       <div class="field"><label>${ic('palette')} Couleur</label><div class="swatches" id="nC">${NOTE_COLORS.map(c => `<button type="button" class="sw ${draft.color === c ? 'on' : ''}" style="--c:${c || 'var(--line2)'}" data-c="${c}" aria-label="${c ? 'Couleur' : 'Sans couleur'}"></button>`).join('')}</div></div>
       ${id ? `<button class="btn danger wide" id="nDel">${ic('trash')} Supprimer la note</button>` : ''}
     </div>`, sh => {
     const sync = () => {
-      draft.title = $('#nT', sh).value; draft.body = $('#nB', sh).value;
+      const ed = $('#nB', sh);
+      draft.title = $('#nT', sh).value; draft.html = cleanHTML(ed.innerHTML); draft.body = ed.innerText.replace(/\n{3,}/g, '\n\n').trim();
+      ed.classList.toggle('empty', !draft.body && !/<(li|hr)/i.test(draft.html));
       if (!n && (draft.title.trim() || draft.body.trim())) { n = { id: uid(), ...draft, upd: Date.now() }; S.notes.push(n); }
       if (n) { Object.assign(n, draft, { upd: Date.now() }); save(); }
     };
     $('#nT', sh).addEventListener('input', sync);
-    $('#nB', sh).addEventListener('input', sync);
+    $('#nT', sh).addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); $('#nB', sh).focus(); } });
+    bindRTE(sh, $('#nB', sh), sync);
+    $('#nB', sh).classList.toggle('empty', !(draft.body || '').trim());
     $('#nC', sh).addEventListener('click', e => { const b = e.target.closest('[data-c]'); if (!b) return; draft.color = b.dataset.c; $$('#nC .sw', sh).forEach(x => x.classList.toggle('on', x === b)); sync(); });
     $('#nPin', sh).addEventListener('click', () => { draft.pin = !draft.pin; $('#nPin', sh).innerHTML = `${ic('pin')} ${draft.pin ? 'Désépingler' : 'Épingler'}`; sync(); });
     if (id) $('#nDel', sh).addEventListener('click', () => {

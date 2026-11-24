@@ -1,6 +1,6 @@
 /* Bloc Note : fonctionnement hors connexion.
    Réseau d'abord (toujours la dernière version), copie locale si pas de réseau. */
-const CACHE = 'bloc-note-v6';
+const CACHE = 'bloc-note-v7';
 const FILES = ['./', 'index.html', 'style.css', 'app.js', 'games.js', 'sync.js', 'icon.svg', 'icon-180.png', 'icon-192.png', 'icon-512.png', 'manifest.webmanifest'];
 
 self.addEventListener('install', e => {
