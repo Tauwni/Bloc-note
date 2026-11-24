@@ -257,6 +257,7 @@ function vToday() {
         : empty('spark', 'Rien pour aujourd’hui', doneToday ? 'Tout est fait, bravo !' : 'Ajoute une tâche juste au-dessus.')}
       ${doneSection(S.tasks.filter(t => t.done && t.doneAt && iso(new Date(t.doneAt)) === k).sort((x, y) => y.doneAt - x.doneAt), 'Faites aujourd’hui')}
       ${soon.length ? `<h2 class="sec" style="margin-top:22px">${ic('calendar')} Cette semaine <small>${soon.length}</small></h2><div class="tlist">${soon.map(t => taskRow(t)).join('')}</div>` : ''}
+      ${(() => { const nd = open.filter(t => !t.due).sort((a, b) => b.prio - a.prio || a.order - b.order); return nd.length ? `<h2 class="sec" style="margin-top:22px">${ic('inbox')} Sans date <small>${nd.length}</small>${nd.length > 5 ? `<button class="link" data-act="goFilter" data-when="nodate">Tout voir</button>` : ''}</h2><div class="tlist">${nd.slice(0, 5).map(t => taskRow(t)).join('')}</div>` : ''; })()}
     </section>
     <section>
       <h2 class="sec">${ic('clock')} Au programme <small>${slots.length}</small><button class="link" data-act="nav" data-nav="planning">Emploi du temps</button></h2>
