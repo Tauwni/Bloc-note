@@ -675,3 +675,12 @@ body.auth-on{overflow:hidden}
 @media (max-width:640px){.rte{min-height:38vh}}
 .rte{position:relative}
 .rb s.rabc{font-family:inherit;font-size:14px;font-weight:600}
+/* Barre d'outils des notes : tous les boutons visibles (plusieurs lignes) */
+.rte-bar{flex-wrap:wrap;overflow:visible;row-gap:4px;justify-content:flex-start}
+@media (max-width:640px){
+  .rte-bar{gap:2px;padding:6px 8px;justify-content:center}
+  .rb{min-width:34px;height:34px;padding:0 6px;font-size:15px}
+  .rsel select{height:34px;font-size:13.5px;max-width:118px}
+  .rsel::after{top:13px}
+  .rsep{height:18px;margin:0 2px}
+}
