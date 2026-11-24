@@ -98,10 +98,24 @@ S.set = { ...DEF_SET, ...(S.set || {}) };
 ['lists', 'tasks', 'slots', 'notes'].forEach(k => { if (!Array.isArray(S[k])) S[k] = []; });
 S.tasks.forEach((t, i) => { t.order ??= i; t.tags ??= []; t.subs ??= []; t.notes ??= ''; t.time ??= ''; t.due ??= ''; });
 let saveOk = true;
-function save() {
+function saveLocal() {
   try { localStorage.setItem(KEY, JSON.stringify(S)); saveOk = true; }
   catch (e) { if (saveOk) toast('Impossible d’enregistrer sur cet appareil'); saveOk = false; }
 }
+function save() { saveLocal(); if (window.BNSync) BNSync.changed(); }
+/* Accès pour la synchronisation du compte (sync.js) */
+window.BN = {
+  get: () => S,
+  set: d => {
+    S = d && d.v === 2 ? d : seed();
+    S.set = { ...DEF_SET, ...(S.set || {}) };
+    ['lists', 'tasks', 'slots', 'notes'].forEach(k => { if (!Array.isArray(S[k])) S[k] = []; });
+    S.tasks.forEach((t, i) => { t.order ??= i; t.tags ??= []; t.subs ??= []; t.notes ??= ''; t.time ??= ''; t.due ??= ''; });
+    saveLocal();
+  },
+  clear: () => { S = seed(); S.tasks = []; S.notes = []; try { localStorage.removeItem(KEY); localStorage.removeItem('blocnote_tasks'); localStorage.removeItem('blocnote_notes'); } catch (e) { /* */ } },
+  refresh: () => { if (!document.querySelector('#sheetRoot .overlay:not(.closing)')) render(); }
+};
 save();
 
 const pref = (k, v) => { try { if (v === undefined) return localStorage.getItem('bn-ui-' + k); localStorage.setItem('bn-ui-' + k, v); } catch (e) { return null; } };
@@ -506,6 +520,7 @@ function vSettings() {
   return `<div class="fadein stagger" style="max-width:720px">
   <header class="head"><div><h1>Réglages</h1><p>Personnalise ton Bloc Note</p></div></header>
   <div class="sgroup"><h3>Profil</h3><div class="srows">
+    ${window.BNSync ? BNSync.row() : ''}
     <div class="srow"><div class="lbl"><span class="sic" style="--c:#5b5bd6">${ic('user')}</span><div>Ton prénom<small>Pour le message d’accueil</small></div></div><input type="text" id="sName" value="${esc(st.name)}" placeholder="Prénom" maxlength="30"></div>
   </div></div>
   <div class="sgroup"><h3>Apparence</h3><div class="srows">
@@ -841,6 +856,7 @@ const ACT = {
     toast('Sauvegarde téléchargée');
   },
   import: () => $('#importFile').click(),
+  logout: () => window.BNSync && BNSync.logout(),
   reset: () => {
     if (!confirm('Effacer toutes les tâches, l’emploi du temps et les notes ? Cette action est définitive.')) return;
     const set = S.set; S = seed(); S.tasks = []; S.notes = []; S.set = set; save(); render(); toast('Tout a été effacé');

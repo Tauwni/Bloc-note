@@ -605,3 +605,26 @@ html,body,button,a,input,select,textarea,label,.task,.slot,.chip{touch-action:ma
 .disc.win{animation:winpulse .8s infinite;box-shadow:0 0 0 3px #fff,0 0 18px #fff}
 @keyframes winpulse{50%{transform:scale(.85)}}
 .gtools .dot.p1{display:inline-block;width:12px;height:12px;border-radius:50%;background:#ff4d6d;vertical-align:-1px;margin-left:4px}
+
+/* =================== Connexion =================== */
+body.auth-on{overflow:hidden}
+.auth{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;padding:20px;overflow:auto;
+  background:radial-gradient(120% 70% at 50% 0%,color-mix(in srgb,var(--accent) 28%,var(--bg)),var(--bg) 70%);animation:fade .3s}
+.auth.leaving{animation:fadeout .3s forwards}
+.auth-card{width:100%;max-width:380px;background:var(--surface);border-radius:28px;padding:30px 24px 22px;box-shadow:var(--shadow-lg),0 0 0 1px var(--line);text-align:center;animation:pop .4s cubic-bezier(.2,.9,.3,1.2)}
+.auth-logo{border-radius:18px;box-shadow:0 12px 28px -10px color-mix(in srgb,var(--accent) 80%,transparent);margin-bottom:10px}
+.auth-card h1{margin:4px 0 4px;font-size:28px;letter-spacing:-.03em}
+.auth-sub{margin:0 0 20px;color:var(--muted);font-size:14.5px}
+.auth-tabs{display:flex;margin-bottom:18px}
+.auth-tabs button{flex:1;padding:9px 0}
+.auth-form{display:flex;flex-direction:column;gap:12px;text-align:left}
+.auth-form label{display:flex;flex-direction:column;gap:6px;font-size:13px;font-weight:700;color:var(--text2)}
+.auth-form label small{font-weight:500;color:var(--muted)}
+.auth-form label[hidden]{display:none}
+.auth-form input{height:50px;border:1px solid var(--line2);border-radius:14px;padding:0 14px;background:var(--surface2);font-size:17px;outline:none}
+.auth-form input[name^=code]{letter-spacing:.45em;font-size:20px;font-weight:700}
+.auth-form input:focus{border-color:var(--accent);box-shadow:0 0 0 4px var(--soft)}
+.auth-err{min-height:18px;color:var(--red);font-size:13.5px;font-weight:600;text-align:center}
+.auth-go{height:50px;font-size:16px;border-radius:14px}
+.auth-switch{margin:16px 0 0;color:var(--muted);font-size:14px}
+.auth-note{margin:14px 0 0;color:var(--muted);font-size:12px;line-height:1.5}
