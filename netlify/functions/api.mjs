@@ -5,7 +5,7 @@ import crypto from "node:crypto";
 
 const STORE = "bloc-note";
 const SESSION_DAYS = 90;
-const store = () => getStore({ name: STORE, consistency: "strong" });
+const store = () => getStore(STORE);
 
 const json = (obj, status = 200, headers = {}) =>
   new Response(JSON.stringify(obj), { status, headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", ...headers } });
@@ -48,8 +48,9 @@ export default async (req) => {
       if (!/^\d{6}$/.test(String(code || ""))) return json({ error: "Le code doit faire exactement 6 chiffres." }, 400);
       const salt = crypto.randomBytes(16).toString("hex");
       const display = String(name).trim().slice(0, 40);
-      const { modified } = await st.setJSON(`users/${id}`, { name: display, salt, hash: hashCode(code, salt), created: Date.now(), fails: 0, lockUntil: 0 }, { onlyIfNew: true });
-      if (!modified) return json({ error: "Ce prénom est déjà utilisé. Ajoute une initiale (ex : « Tony F »)." }, 409);
+      const exists = await st.get(`users/${id}`);
+      if (exists !== null) return json({ error: "Ce prénom est déjà utilisé. Ajoute une initiale (ex : « Tony F »)." }, 409);
+      await st.setJSON(`users/${id}`, { name: display, salt, hash: hashCode(code, salt), created: Date.now(), fails: 0, lockUntil: 0 });
       return openSession(st, id, display);
     }
 
@@ -100,7 +101,7 @@ export default async (req) => {
     return json({ error: "Introuvable" }, 404);
   } catch (e) {
     console.error(e);
-    return json({ error: e.status ? e.message : "Erreur du serveur" }, e.status || 500);
+    return json({ error: e.status ? e.message : `Erreur du serveur (${e.name}: ${String(e.message).slice(0, 160)})` }, e.status || 500);
   }
 };
 
