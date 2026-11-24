@@ -233,6 +233,7 @@ function vToday() {
   const k = todayK(), open = openTasks();
   const late = open.filter(t => t.due && t.due < k).sort((a, b) => a.due.localeCompare(b.due));
   const tod = open.filter(t => t.due === k).sort((a, b) => (a.time || '99').localeCompare(b.time || '99') || b.prio - a.prio);
+  const nodate = open.filter(t => !t.due).sort((a, b) => b.prio - a.prio || a.order - b.order);
   const doneToday = S.tasks.filter(t => t.done && t.doneAt && iso(new Date(t.doneAt)) === k).length;
   const total = tod.length + doneToday, p = total ? doneToday / total : 0;
   const soon = open.filter(t => t.due > k && t.due <= addDays(k, 7)).sort((a, b) => a.due.localeCompare(b.due) || b.prio - a.prio).slice(0, 6);
@@ -252,12 +253,11 @@ function vToday() {
   <label class="card quick">${ic('plus')}<input id="quickAdd" placeholder="Ajouter une tâche pour aujourd’hui…  (ex : Réviser compta 18h !3)" enterkeyhint="done" autocomplete="off"><button class="btn primary sm" data-act="quickAdd">Ajouter</button></label>
   <div class="cols">
     <section>
-      <h2 class="sec">${ic('listc')} À faire <small>${late.length + tod.length}</small><button class="link" data-act="nav" data-nav="tasks">Tout voir</button></h2>
-      ${late.length || tod.length ? `<div class="tlist">${late.map(t => taskRow(t)).join('')}${tod.map(t => taskRow(t)).join('')}</div>`
+      <h2 class="sec">${ic('listc')} À faire <small>${late.length + tod.length + nodate.length}</small><button class="link" data-act="nav" data-nav="tasks">Tout voir</button></h2>
+      ${late.length || tod.length || nodate.length ? `<div class="tlist">${late.map(t => taskRow(t)).join('')}${tod.map(t => taskRow(t)).join('')}${nodate.map(t => taskRow(t)).join('')}</div>`
         : empty('spark', 'Rien pour aujourd’hui', doneToday ? 'Tout est fait, bravo !' : 'Ajoute une tâche juste au-dessus.')}
       ${doneSection(S.tasks.filter(t => t.done && t.doneAt && iso(new Date(t.doneAt)) === k).sort((x, y) => y.doneAt - x.doneAt), 'Faites aujourd’hui')}
       ${soon.length ? `<h2 class="sec" style="margin-top:22px">${ic('calendar')} Cette semaine <small>${soon.length}</small></h2><div class="tlist">${soon.map(t => taskRow(t)).join('')}</div>` : ''}
-      ${(() => { const nd = open.filter(t => !t.due).sort((a, b) => b.prio - a.prio || a.order - b.order); return nd.length ? `<h2 class="sec" style="margin-top:22px">${ic('inbox')} Sans date <small>${nd.length}</small>${nd.length > 5 ? `<button class="link" data-act="goFilter" data-when="nodate">Tout voir</button>` : ''}</h2><div class="tlist">${nd.slice(0, 5).map(t => taskRow(t)).join('')}</div>` : ''; })()}
     </section>
     <section>
       <h2 class="sec">${ic('clock')} Au programme <small>${slots.length}</small><button class="link" data-act="nav" data-nav="planning">Emploi du temps</button></h2>
